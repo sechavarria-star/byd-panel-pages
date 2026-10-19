@@ -53,7 +53,7 @@ Supabase Giwa_Database, schema byd (expuesto en la API)
 
 | Vista | Fuente | Chips |
 |---|---|---|
-| Resumen | todas según rol | — |
+| Resumen | todas según rol + mapa de calor "Cuándo escriben" (`v_mensajes` de clientes, día × hora de Argentina, mismo diseño que Grun) | — |
 | Interesados | `v_leads` | estado, motor, carrocería, presupuesto, uso |
 | Modelos consultados | `v_modelos_consultados` | cómo (ficha / recomendado / elegido / test drive), motor, carrocería |
 | Agenda de test drives | `v_testdrives` | sucursal, modelo, estado |

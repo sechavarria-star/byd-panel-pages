@@ -24,6 +24,8 @@
   --b-tenue:rgba(30,42,85,.25);--b-suave:rgba(30,42,85,.4);
   --blue-a:rgba(0,144,255,.12);--teal-a:rgba(20,184,166,.13);--ok-a:rgba(0,201,122,.13);--yl-a:rgba(232,197,71,.13);
   --wa-a:rgba(245,166,35,.13);--rd-a:rgba(255,77,109,.13);--violet-a:rgba(168,85,247,.13);--mt-a:rgba(136,146,176,.12);
+  /* Rampa del mapa de calor (la misma del panel de Grun): magnitud continua = un solo tono, oscuro a claro. */
+  --heat-1:#184f95;--heat-2:#256abf;--heat-3:#3987e5;--heat-4:#5598e7;--heat-5:#86b6ef;--heat-6:#b7d3f6;
 }
 body{font-family:'Montserrat',sans-serif;font-weight:300;background:var(--bg);color:var(--tx);min-height:100vh;font-size:14px}
 h1,h2,h3,b,strong{font-weight:700}
@@ -128,6 +130,17 @@ select.fc option{background:var(--bg2)}
 .chips .grupo{font-size:9.5px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.06em;min-width:92px}
 .buscar{max-width:260px}
 .dos{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
+/* Mapa de calor día × hora (idea del panel de Grun) */
+.heat-wrap{overflow-x:auto;padding-bottom:4px}
+.heat{display:grid;grid-template-columns:34px repeat(24,minmax(21px,1fr));gap:3px;min-width:620px}
+.heat .hh{font-size:9.5px;color:var(--mt);text-align:center;padding-bottom:3px;font-family:var(--mono)}
+.heat .dd{font-size:10.5px;color:var(--mt);display:flex;align-items:center}
+.celda{aspect-ratio:1/1;border-radius:4px;background:var(--bg3);border:1px solid transparent;max-height:40px}
+.celda.v{border-color:rgba(255,255,255,.06)}.celda:hover{border-color:rgba(255,255,255,.45)}
+.escala{display:flex;align-items:center;gap:7px;margin-top:12px;font-size:10.5px;color:var(--mt)}
+.escala .paso{width:17px;height:9px;border-radius:2px}
+#tip{position:fixed;z-index:400;pointer-events:none;opacity:0;background:#000;border:1px solid var(--b);border-radius:7px;padding:7px 10px;font-size:12px;line-height:1.45;white-space:nowrap;transition:opacity .12s;box-shadow:0 6px 22px rgba(0,0,0,.6)}
+#tip b{font-weight:700}#tip span{color:var(--mt)}
 /* Ranking de modelos */
 .rk{display:grid;grid-template-columns:62px 1fr auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--b-suave)}
 .rk:last-child{border-bottom:none}
@@ -258,6 +271,7 @@ select.fc option{background:var(--bg2)}
   </div>
 </div>
 <div class="toasts" id="toasts"></div>
+<div id="tip"></div>
 
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -507,7 +521,7 @@ async function vResumen() {
     const tp = turnos.filter((t) => t.estado === 'confirmado' && fd(t.inicio) > ahora);
     html += kpi('k-activo', 'Turnos de taller', tp.length, tp[0] ? 'El próximo: ' + ffh(fechaLocal(tp[0].inicio_local)) : 'Sin turnos futuros');
   }
-  html += '</div><div class="dos">';
+  html += '</div>' + mapaCalor(msgs) + '<div class="dos">';
   if (pre) html += `<div class="card"><div class="card-t">Modelos más consultados</div>${ranking(mc, 5)}<a class="btn bg sm" style="margin-top:10px" href="#/modelos">Ver todos</a></div>`;
   // Actividad: últimos mensajes de clientes
   const ult = msgs.filter((m) => m.autor === 'cliente').slice(-8).reverse();
@@ -516,6 +530,49 @@ async function vResumen() {
     `<tr class="click" onclick="location.hash='#/conversaciones/${encodeURIComponent(m.wa_id)}'"><td class="u-mono u-s10-mt" style="white-space:nowrap">${ffh(fd(m.fecha))}</td><td><b style="font-weight:600">${esc(nom.get(m.wa_id) || m.wa_id)}</b><div class="u-s10-mt">${esc((m.texto || '').slice(0, 90))}</div></td></tr>`).join('') + '</tbody></table>' : '<div class="empty">Sin mensajes todavía.</div>'}</div>`;
   html += '</div>';
   $('vista').innerHTML = html;
+  activarTips($('vista'));
+}
+
+// Mapa de calor: mensajes de clientes por día de la semana y hora, en hora de Argentina
+// (aunque el navegador esté en otra zona). Mismo diseño que el panel de Grun.
+const RAMPA = [1, 2, 3, 4, 5, 6].map((i) => `var(--heat-${i})`);
+const DIAS_L = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const HORA_AR = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Argentina/Buenos_Aires', weekday: 'short', hour: 'numeric', hourCycle: 'h23' });
+const DOW = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+function mapaCalor(msgs) {
+  const cuenta = {}; let max = 0;
+  for (const m of msgs) {
+    if (m.autor !== 'cliente' || !m.fecha) continue;
+    const p = Object.fromEntries(HORA_AR.formatToParts(new Date(m.fecha)).map((x) => [x.type, x.value]));
+    const k = DOW[p.weekday] + '_' + Number(p.hour);
+    cuenta[k] = (cuenta[k] || 0) + 1; max = Math.max(max, cuenta[k]);
+  }
+  let h = '<div></div>';
+  for (let i = 0; i < 24; i++) h += `<div class="hh">${i % 3 === 0 ? i : ''}</div>`;
+  for (const d of [1, 2, 3, 4, 5, 6, 0]) {          // de lunes a domingo
+    h += `<div class="dd">${DIAS[d]}</div>`;
+    for (let i = 0; i < 24; i++) {
+      const n = cuenta[d + '_' + i] || 0;
+      const c = n ? RAMPA[max <= 1 ? RAMPA.length - 1 : Math.min(RAMPA.length - 1, Math.floor(n / max * (RAMPA.length - 1) + 0.5))] : '';
+      h += `<div class="celda${n ? ' v' : ''}"${c ? ` style="background:${c}"` : ''} data-tip="<b>${DIAS_L[d]} ${i}:00</b><br><span>${n ? n + ' mensaje' + (n === 1 ? '' : 's') : 'sin mensajes'}</span>"></div>`;
+    }
+  }
+  return `<div class="card" style="margin-bottom:12px"><div class="card-t">Cuándo escriben</div>
+    <div class="heat-wrap"><div class="heat">${h}</div></div>
+    <div class="escala"><span>Menos</span>${RAMPA.map((c) => `<div class="paso" style="background:${c}"></div>`).join('')}<span>Más</span>
+      <span class="u-mla">Mensajes de clientes · hora de Argentina</span></div></div>`;
+}
+function activarTips(raiz) {
+  raiz.querySelectorAll('[data-tip]').forEach((el) => {
+    el.addEventListener('mousemove', (e) => {
+      const t = $('tip'); t.innerHTML = el.dataset.tip; t.style.opacity = 1;
+      const r = t.getBoundingClientRect(); let x = e.clientX + 14, y = e.clientY + 14;
+      if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
+      if (y + r.height > innerHeight - 8) y = e.clientY - r.height - 14;
+      t.style.left = x + 'px'; t.style.top = y + 'px';
+    });
+    el.addEventListener('mouseleave', () => { $('tip').style.opacity = 0; });
+  });
 }
 
 // Ranking de modelos a partir de v_modelos_consultados. Cuenta conversaciones distintas por modelo,
