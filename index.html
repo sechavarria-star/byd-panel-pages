@@ -1,0 +1,781 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel BYD · GIWA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+/* ══════════════════════════════════════════════════════════════
+   Tokens y componentes de _Estilos (design system GIWA), copiados
+   porque una página estática no puede incluir el archivo compartido.
+   Solo lo que usa este panel; los nombres y valores son los mismos.
+   ══════════════════════════════════════════════════════════════ */
+*{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none!important}
+:root{
+  color-scheme:dark;
+  --bg:#060716;--bg2:#0d1130;--bg3:#111840;--card:#0f1535;
+  --b:#1e2a55;--blue:#0090FF;--b2:#0070cc;--violet:#A855F7;
+  --tx:#e8eaf6;--mt:#8892b0;--mt2:#5a6488;--ok:#00c97a;--wa:#f5a623;--rd:#ff4d6d;--teal:#14b8a6;--yl:#e8c547;
+  --r:10px;--mono:'Courier New',monospace;
+  --b-tenue:rgba(30,42,85,.25);--b-suave:rgba(30,42,85,.4);
+  --blue-a:rgba(0,144,255,.12);--teal-a:rgba(20,184,166,.13);--ok-a:rgba(0,201,122,.13);--yl-a:rgba(232,197,71,.13);
+  --wa-a:rgba(245,166,35,.13);--rd-a:rgba(255,77,109,.13);--violet-a:rgba(168,85,247,.13);--mt-a:rgba(136,146,176,.12);
+}
+body{font-family:'Montserrat',sans-serif;font-weight:300;background:var(--bg);color:var(--tx);min-height:100vh;font-size:14px}
+h1,h2,h3,b,strong{font-weight:700}
+.app{display:flex;min-height:100vh}
+.sb{width:200px;background:var(--bg2);border-right:1px solid var(--b);display:flex;flex-direction:column;position:fixed;height:100vh;top:0;z-index:100;overflow-y:auto;transition:width .18s ease}
+.logo{padding:0 14px;min-height:50px;border-bottom:1px solid var(--b);display:flex;align-items:center;gap:8px;flex-shrink:0}
+.lg{font-size:14px;font-weight:800;color:var(--blue)}.lia{font-size:11px;color:var(--violet);font-weight:700}
+nav{flex:1;padding:8px 0}
+.nsec{padding:4px 14px 3px;font-size:9px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.8px;margin-top:9px}
+.ni{display:flex;align-items:center;gap:8px;padding:7px 14px;color:var(--mt);cursor:pointer;font-size:12px;font-weight:500;border-left:3px solid transparent;transition:.15s;text-decoration:none}
+.ni:hover{color:var(--tx);background:rgba(0,144,255,.06)}.ni.on{color:var(--blue);background:rgba(0,144,255,.1);border-left-color:var(--blue)}
+.ni svg{width:14px;height:14px;flex-shrink:0}
+.sb-foot{padding:10px 14px;font-size:10px;color:var(--mt);flex-shrink:0;border-top:1px solid var(--b)}
+.main{margin-left:200px;width:calc(100% - 200px);min-width:0;display:flex;flex-direction:column;min-height:100vh;transition:margin-left .18s ease}
+.top{background:var(--bg2);border-bottom:1px solid var(--b);padding:0 20px;min-height:50px;display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;z-index:50}
+.top-t{font-size:14px;font-weight:700}
+.content{padding:14px 18px;flex:1}
+#sb-toggle{margin-left:auto;background:none;border:none;color:var(--mt);font-size:16px;line-height:1;cursor:pointer;padding:4px;border-radius:6px}
+#sb-toggle:hover{color:var(--tx);background:rgba(255,255,255,.06)}
+.sb.collapsed{width:56px;overflow:visible}
+.sb.collapsed ~ .main{margin-left:56px;width:calc(100% - 56px)}
+.sb.collapsed .logo>div,.sb.collapsed .nsec,.sb.collapsed .sb-foot{display:none}
+.sb.collapsed .logo{justify-content:center}
+.sb.collapsed #sb-toggle{margin-left:0}
+.sb.collapsed .ni{justify-content:center;gap:0;font-size:0;padding:9px 0;position:relative}
+.sb.collapsed .ni svg{width:18px;height:18px}
+.sb.collapsed .ni::after{content:attr(data-label);position:absolute;left:100%;top:50%;transform:translateY(-50%);margin-left:10px;background:var(--bg3);border:1px solid var(--b);color:var(--tx);font-size:11px;font-weight:600;padding:5px 9px;border-radius:6px;white-space:nowrap;opacity:0;visibility:hidden;pointer-events:none;transition:.12s;z-index:600}
+.sb.collapsed .ni:hover::after{opacity:1;visibility:visible}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border-radius:var(--r);border:none;cursor:pointer;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:600;transition:.15s;white-space:nowrap}
+.bp{background:var(--b2);color:#fff}.bp:hover{background:var(--blue)}
+.bg{background:transparent;color:var(--mt);border:1px solid var(--b)}.bg:hover{color:var(--tx);border-color:var(--blue)}
+.brd{background:var(--rd-a);color:var(--rd);border:1px solid rgba(255,77,109,.2)}
+.sm{padding:4px 9px;font-size:11px}.btn:disabled{opacity:.4;cursor:not-allowed}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px;margin-bottom:16px}
+.kpi{--accent:var(--blue);background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:14px 16px;border-top:3px solid var(--accent)}
+.kpi-lbl{font-size:9px;color:var(--mt);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.kpi-val{font-size:18px;font-weight:700;font-family:var(--mono);color:var(--accent)}
+.kpi-sub{font-size:10px;color:var(--mt);margin-top:3px}
+.k-info{--accent:var(--blue);background:linear-gradient(var(--blue-a),transparent),var(--card)}
+.k-activo{--accent:var(--teal);background:linear-gradient(var(--teal-a),transparent),var(--card)}
+.k-oport{--accent:var(--violet);background:linear-gradient(var(--violet-a),transparent),var(--card)}
+.k-alerta{--accent:var(--rd);background:linear-gradient(var(--rd-a),transparent),var(--card)}
+.k-seguir{--accent:var(--yl);background:linear-gradient(var(--yl-a),transparent),var(--card)}
+.card{background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:14px 16px}
+.card-t{font-size:11px;font-weight:700;color:var(--tx);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.sec{font-size:9.5px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:14px;font-size:10.5px;font-weight:600;background:var(--mt-a);color:var(--mt);border:1px solid transparent;cursor:pointer;font-family:inherit}
+.chip:hover{color:var(--tx)}
+.chip.chip-on{background:var(--blue-a);color:var(--blue);border-color:rgba(0,144,255,.35)}
+.chip .n{font-family:var(--mono);opacity:.7}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{padding:7px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--b);white-space:nowrap}
+.tbl td{padding:8px 10px;border-bottom:1px solid var(--b-suave);vertical-align:middle;font-size:12px}
+.tbl tr:last-child td{border-bottom:none}.tbl tbody tr:hover td{background:rgba(0,144,255,.03)}
+.tbl tr.click{cursor:pointer}
+.bx{display:inline-block;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap}
+.xb{background:var(--blue-a);color:var(--blue)}.xt{background:var(--teal-a);color:var(--teal)}.xg{background:var(--ok-a);color:var(--ok)}
+.xy{background:var(--yl-a);color:var(--yl)}.xw{background:var(--wa-a);color:var(--wa)}.xr{background:var(--rd-a);color:var(--rd)}
+.xv{background:var(--violet-a);color:var(--violet)}.xm{background:var(--mt-a);color:var(--mt)}
+.fg{margin-bottom:11px}
+.fl{display:block;font-size:10px;font-weight:700;color:var(--mt);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+.fc{width:100%;background:var(--bg3);border:1px solid var(--b);border-radius:7px;padding:7px 9px;color:var(--tx);font-family:'Montserrat',sans-serif;font-size:12px}
+.fc:focus{outline:none;border-color:var(--blue)}.fc::placeholder{color:var(--mt)}
+select.fc option{background:var(--bg2)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:200;display:none;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto}
+.mo.open{display:flex}
+.md{background:var(--bg2);border:1px solid var(--b);border-radius:12px;width:100%;max-width:480px;margin:auto}
+.mh{padding:13px 18px;border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between}
+.mt2{font-size:13px;font-weight:700}.mb2{padding:16px 18px}
+.mf{padding:11px 18px;border-top:1px solid var(--b);display:flex;justify-content:flex-end;gap:7px}
+.toasts{position:fixed;bottom:16px;right:16px;z-index:300;display:flex;flex-direction:column;gap:5px}
+.toast{padding:8px 13px;border-radius:7px;font-size:12px;font-weight:500;min-width:190px;animation:fadein .2s}
+@keyframes fadein{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.tok{background:#0a2a1a;border:1px solid var(--ok);color:var(--ok)}
+.terr{background:#2a0a0f;border:1px solid var(--rd);color:var(--rd)}
+.loading{display:flex;align-items:center;justify-content:center;gap:10px;padding:40px;color:var(--mt);font-size:12px}
+.spin{width:17px;height:17px;border:2px solid var(--b);border-top-color:var(--blue);border-radius:50%;animation:sp .6s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.empty{text-align:center;padding:28px;color:var(--mt);font-size:12px}
+.hint{font-size:10.5px;color:var(--mt);line-height:1.45}
+.accent{height:3px;background:linear-gradient(90deg,var(--blue),var(--violet))}
+.u-mono{font-family:var(--mono)}.u-c-mt{color:var(--mt)}.u-c-rd{color:var(--rd)}.u-s10-mt{font-size:10px;color:var(--mt)}
+.u-mla{margin-left:auto}.u-ov{overflow:auto}
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-thumb{background:var(--b);border-radius:4px}
+
+/* ══════════════════════════════════════════════════════════════
+   Propio del panel BYD
+   ══════════════════════════════════════════════════════════════ */
+/* Login */
+.login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+.login .card{width:100%;max-width:360px;padding:0;overflow:hidden}
+.login-c{padding:22px 24px}
+.login h1{font-size:16px;margin-bottom:4px}
+.sep-o{display:flex;align-items:center;gap:10px;margin:12px 0;color:var(--mt);font-size:10px}
+.sep-o::before,.sep-o::after{content:'';flex:1;height:1px;background:var(--b)}
+.oauth{width:100%;justify-content:center;color:var(--tx)}
+.login .err{color:var(--rd);font-size:11px;min-height:16px;margin-bottom:8px}
+/* Filtros: un grupo de chips por campo, con contador (idea del panel de Grun) */
+.filtros{display:flex;flex-direction:column;gap:7px;margin-bottom:12px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chips .grupo{font-size:9.5px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.06em;min-width:92px}
+.buscar{max-width:260px}
+.dos{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
+/* Ranking de modelos */
+.rk{display:grid;grid-template-columns:62px 1fr auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--b-suave)}
+.rk:last-child{border-bottom:none}
+.rk img{width:62px;height:40px;object-fit:contain;background:var(--bg3);border-radius:6px}
+.rk-n{font-size:12px;font-weight:600}
+.barra{height:4px;background:var(--b);border-radius:2px;overflow:hidden;margin-top:5px}
+.barra>div{height:100%;background:linear-gradient(90deg,var(--blue),var(--violet))}
+.rk-v{font-family:var(--mono);font-weight:700;color:var(--blue);font-size:15px;text-align:right}
+/* Agenda semanal (idea de la agenda del Hospital) */
+.semana{display:grid;grid-template-columns:repeat(6,minmax(140px,1fr));gap:8px;overflow-x:auto}
+.dia{background:var(--card);border:1px solid var(--b);border-radius:var(--r);min-height:140px;display:flex;flex-direction:column}
+.dia.hoy{border-color:var(--blue)}
+.dia-h{padding:8px 10px;border-bottom:1px solid var(--b);font-size:11px;font-weight:700;display:flex;justify-content:space-between}
+.dia-b{padding:7px;display:flex;flex-direction:column;gap:6px}
+.ev{background:var(--bg3);border:1px solid var(--b);border-left:3px solid var(--blue);border-radius:7px;padding:6px 8px;font-size:11px;line-height:1.4}
+.ev.cancel{opacity:.5;border-left-color:var(--mt2)}
+.ev .h{font-family:var(--mono);font-weight:700;color:var(--blue)}
+.ev .s{font-size:10px;color:var(--mt)}
+/* Conversaciones: lista + burbujas (idea del panel de Grun) */
+.conv{display:grid;grid-template-columns:300px 1fr;gap:12px;min-height:520px}
+.conv-l{background:var(--card);border:1px solid var(--b);border-radius:var(--r);overflow:auto;max-height:72vh}
+.conv-i{padding:10px 12px;border-bottom:1px solid var(--b-suave);cursor:pointer}
+.conv-i:hover{background:rgba(0,144,255,.05)}.conv-i.on{background:var(--blue-a)}
+.conv-i .nom{font-size:12px;font-weight:600}
+.conv-c{background:var(--card);border:1px solid var(--b);border-radius:var(--r);display:flex;flex-direction:column;max-height:72vh}
+.conv-h{padding:10px 14px;border-bottom:1px solid var(--b);display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chat{padding:14px;overflow:auto;display:flex;flex-direction:column;gap:8px;flex:1}
+.msg{display:flex;flex-direction:column;max-width:78%}
+.msg.cliente{align-self:flex-start}.msg.agente{align-self:flex-end;align-items:flex-end}
+.msg.herramienta{align-self:center;max-width:90%}
+.burbuja{width:fit-content;max-width:100%;padding:8px 11px;border-radius:12px;background:var(--bg3);border:1px solid var(--b);font-size:12px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;font-weight:400}
+.msg.agente .burbuja{background:#17325c;border-color:#1f4580;border-top-right-radius:4px}
+.msg.cliente .burbuja{border-top-left-radius:4px}
+.msg.herramienta .burbuja{background:transparent;border-style:dashed;color:var(--mt);font-size:10.5px;padding:3px 9px}
+.msg .meta{font-size:9.5px;color:var(--mt);margin-top:2px;font-family:var(--mono)}
+.dia-sep{align-self:center;font-size:10px;color:var(--mt);background:var(--mt-a);padding:2px 10px;border-radius:10px;margin:4px 0}
+.perfil{display:flex;flex-wrap:wrap;gap:4px}
+@media (max-width:820px){
+  .sb{width:56px}.main{margin-left:56px;width:calc(100% - 56px)}
+  .sb .logo>div,.sb .nsec,.sb .sb-foot{display:none}
+  .sb .ni{justify-content:center;font-size:0;padding:9px 0}
+  .conv{grid-template-columns:1fr}.content{padding:12px 16px}
+  .chips .grupo{min-width:100%}
+}
+</style>
+</head>
+<body>
+
+<!-- ── Login ───────────────────────────────────────────── -->
+<div id="vLogin" class="login" hidden>
+  <div class="card">
+    <div class="accent"></div>
+    <form class="login-c" id="fLogin">
+      <h1>Panel BYD</h1>
+      <p class="hint" style="margin-bottom:16px">Interacciones del asistente de WhatsApp, pre venta y post venta.</p>
+      <div class="fg"><label class="fl" for="lEmail">Email</label><input class="fc" id="lEmail" type="email" autocomplete="username" required></div>
+      <div class="fg"><label class="fl" for="lClave">Contraseña</label><input class="fc" id="lClave" type="password" autocomplete="current-password" required></div>
+      <div class="err" id="lErr"></div>
+      <button class="btn bp" style="width:100%;justify-content:center" id="lBtn">Entrar</button>
+      <div class="sep-o"><span>o</span></div>
+      <button type="button" class="btn bg oauth" onclick="entrarCon('google')">
+        <svg viewBox="0 0 48 48" width="16" height="16" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
+        Continuar con Google</button>
+      <button type="button" class="btn bg oauth" onclick="entrarCon('azure')" style="margin-top:7px">
+        <svg viewBox="0 0 23 23" width="15" height="15" aria-hidden="true"><path fill="#f35325" d="M1 1h10v10H1z"/><path fill="#81bc06" d="M12 1h10v10H12z"/><path fill="#05a6f0" d="M1 12h10v10H1z"/><path fill="#ffba08" d="M12 12h10v10H12z"/></svg>
+        Continuar con Microsoft</button>
+      <p class="hint" style="margin-top:12px">¿No tenés usuario u olvidaste la contraseña? Pedíselo a un administrador del panel.</p>
+    </form>
+  </div>
+</div>
+
+<!-- ── Sin acceso ──────────────────────────────────────── -->
+<div id="vSinAcceso" class="login" hidden>
+  <div class="card"><div class="accent"></div><div class="login-c">
+    <h1>Sin acceso al panel</h1>
+    <p class="hint" style="margin:8px 0 16px">Tu usuario (<span id="saEmail"></span>) entró bien, pero no está habilitado en el panel BYD o está desactivado. Pedile a un administrador que te dé un rol.</p>
+    <button class="btn bg" onclick="salir()">Salir</button>
+  </div></div>
+</div>
+
+<!-- ── App ─────────────────────────────────────────────── -->
+<div id="vApp" class="app" hidden>
+  <aside class="sb" id="sb">
+    <div class="logo">
+      <div><span class="lg">BYD</span> <span class="lia">· GIWA {IA}</span></div>
+      <button id="sb-toggle" title="Achicar menú" onclick="toggleSb()">☰</button>
+    </div>
+    <nav id="nav"></nav>
+    <div class="sb-foot"><div id="sfNombre" style="color:var(--tx);font-weight:600"></div><div id="sfRol"></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button class="btn bg sm" onclick="abrirClave()">Mi contraseña</button>
+      <button class="btn bg sm" onclick="salir()">Salir</button></div></div>
+  </aside>
+  <main class="main">
+    <div class="top"><div class="top-t" id="topT"></div>
+      <div style="display:flex;gap:8px;align-items:center"><span class="u-s10-mt" id="topAct"></span>
+        <button class="btn bg sm" onclick="recargar()" title="Volver a leer la base">↻ Actualizar</button></div></div>
+    <div class="content" id="vista"></div>
+  </main>
+</div>
+
+<!-- ── Modal usuario ───────────────────────────────────── -->
+<div class="mo" id="moUsuario">
+  <div class="md"><div class="mh"><div class="mt2" id="muT">Nuevo usuario</div><button class="btn bg sm" onclick="cerrarModal()">✕</button></div>
+    <form class="mb2" id="fUsuario">
+      <div class="fg" id="muEmailG"><label class="fl">Email</label><input class="fc" id="muEmail" type="email"></div>
+      <div class="g2">
+        <div class="fg"><label class="fl">Nombre</label><input class="fc" id="muNombre"></div>
+        <div class="fg"><label class="fl">Rol</label><select class="fc" id="muRol">
+          <option value="preventa">Pre Venta</option><option value="posventa">Post Venta</option><option value="admin">Admin</option></select></div>
+      </div>
+      <div class="fg"><label class="fl" id="muClaveL">Contraseña provisoria (opcional)</label><input class="fc" id="muClave" type="text" autocomplete="off" placeholder="Mínimo 8 caracteres"></div>
+      <p class="hint" id="muHint">Vacía: la persona entra solo con Google o Microsoft, con este mismo email. Con contraseña: pasásela por un canal privado.</p>
+    </form>
+    <div class="mf"><button class="btn bg" onclick="cerrarModal()">Cancelar</button><button class="btn bp" id="muBtn" onclick="guardarUsuario()">Guardar</button></div>
+  </div>
+</div>
+<!-- ── Modal mi contraseña ─────────────────────────────── -->
+<div class="mo" id="moClave">
+  <div class="md"><div class="mh"><div class="mt2" id="mcT">Cambiar mi contraseña</div><button class="btn bg sm" onclick="cerrarClave()">✕</button></div>
+    <form class="mb2" id="fClave" onsubmit="event.preventDefault();guardarClave()">
+      <input type="email" autocomplete="username" id="mcUser" hidden>
+      <div class="fg"><label class="fl" for="mcNueva">Nueva contraseña</label><input class="fc" id="mcNueva" type="password" autocomplete="new-password" placeholder="Mínimo 8 caracteres"></div>
+      <div class="fg"><label class="fl" for="mcRepite">Repetila</label><input class="fc" id="mcRepite" type="password" autocomplete="new-password"></div>
+      <p class="hint" id="mcHint"></p>
+      <div class="err u-c-rd" id="mcErr" style="font-size:11px;min-height:16px;margin-top:6px"></div>
+    </form>
+    <div class="mf"><button class="btn bg" onclick="cerrarClave()">Cancelar</button><button class="btn bp" id="mcBtn" onclick="guardarClave()">Guardar</button></div>
+  </div>
+</div>
+<div class="toasts" id="toasts"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// Config. La publishable key ES pública: va en el navegador por diseño.
+// Lo que protege los datos son las policies de RLS (supabase/sql/02-panel.sql
+// en CODE/byd): sin una fila activa en byd.usuarios_panel no se ve nada.
+// ══════════════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://ofhiogczijhzkuqdjwvz.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_sHdrgf8l6HwnKgK38gWnFQ_fEEVgG4f';
+const FN_USUARIOS = SUPABASE_URL + '/functions/v1/byd-panel-usuarios';
+
+// PKCE: Google vuelve con ?code= (no con #access_token=…), así no choca con el ruteo por hash.
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { db: { schema: 'byd' }, auth: { flowType: 'pkce' } });
+
+// ── Utilidades ──
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+const p2 = (n) => String(n).padStart(2, '0');
+// Las vistas devuelven *_local sin zona ("2026-10-20T10:00:00"): se leen como hora local de Buenos Aires.
+function fechaLocal(s) { if (!s) return null; const m = String(s).match(/(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/); return m ? new Date(+m[1], m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0)) : null; }
+const ff = (d) => d ? `${p2(d.getDate())}/${p2(d.getMonth() + 1)}/${d.getFullYear()}` : '';
+const fh = (d) => d ? `${p2(d.getHours())}:${p2(d.getMinutes())}` : '';
+const ffh = (d) => d ? `${ff(d)} ${fh(d)}` : '';
+const fd = (iso) => iso ? new Date(iso) : null;   // timestamptz → Date
+const plata = (n, m) => n == null ? '' : (m === 'USD' ? 'U$ ' : '$ ') + Number(n).toLocaleString('es-AR', { maximumFractionDigits: 0 });
+const mismoDia = (a, b) => a && b && a.toDateString() === b.toDateString();
+function toast(t, err) { const d = document.createElement('div'); d.className = 'toast ' + (err ? 'terr' : 'tok'); d.textContent = t; $('toasts').appendChild(d); setTimeout(() => d.remove(), 4000); }
+
+// Etiquetas legibles de los valores que guarda el bot.
+const ETQ = {
+  presupuesto: { hasta_25: 'Hasta U$ 25k', '25_32': 'U$ 25–32k', '32_40': 'U$ 32–40k', mas_40: 'Más de U$ 40k' },
+  motor: { EV: 'Eléctrico', PHEV: 'Híbrido enchufable', indistinto: 'Indistinto' },
+  carroceria: { hatchback: 'Hatchback', suv: 'SUV', sedan: 'Sedán', pickup: 'Pickup', indistinto: 'Indistinto' },
+  uso: { ciudad: 'Ciudad', ruta: 'Ruta', mixto: 'Mixto' },
+  carga_casa: { si: 'Carga en casa', no: 'Sin carga en casa', nose: 'Carga: no sabe' },
+  intencion: { venta: 'Pre venta', posventa: 'Post venta', service: 'Post venta', otro: 'Otro' },
+  estado_lead: { nuevo: 'Nuevo', test_drive: 'Test drive' },
+  estado_service: { vencido: 'Vencido', proximo: 'Próximo', al_dia: 'Al día' },
+  origen: { ficha: 'Ficha enviada', mencion: 'Mencionado', recomendado: 'Recomendado', elegido: 'Elegido', test_drive: 'Test drive' },
+  rol: { admin: 'Admin', preventa: 'Pre Venta', posventa: 'Post Venta' },
+};
+const etq = (grupo, v) => (ETQ[grupo] && ETQ[grupo][v]) || (v == null || v === '' ? 'Sin dato' : String(v).replace(/_/g, ' '));
+// Badges: el color dice qué es (design system GIWA).
+const BADGE = {
+  estado_lead: { nuevo: 'xm', test_drive: 'xv' },
+  estado_service: { vencido: 'xr', proximo: 'xy', al_dia: 'xg' },
+  td: { confirmada: 'xt', realizada: 'xg', cancelada: 'xm', ausente: 'xw' },
+  turno: { confirmado: 'xt', realizado: 'xg', cancelado: 'xm', ausente: 'xw' },
+  intencion: { venta: 'xv', posventa: 'xb', service: 'xb' },
+};
+const bx = (tipo, v, txt) => `<span class="bx ${(BADGE[tipo] || {})[v] || 'xm'}">${esc(txt ?? etq(tipo, v))}</span>`;
+
+// ══════════════════════════════════════════════════════════════
+// Sesión
+// ══════════════════════════════════════════════════════════════
+let YO = null;          // fila de byd.usuarios_panel del usuario logueado
+const DATOS = {};       // caché de vistas leídas
+let cargadoEn = null;
+
+function mostrar(id) { ['vLogin', 'vSinAcceso', 'vApp'].forEach((v) => $(v).hidden = v !== id); }
+
+$('fLogin').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('lErr').textContent = ''; $('lBtn').disabled = true;
+  const { error } = await sb.auth.signInWithPassword({ email: $('lEmail').value.trim(), password: $('lClave').value });
+  $('lBtn').disabled = false;
+  if (error) { $('lErr').textContent = /invalid/i.test(error.message) ? 'Email o contraseña incorrectos.' : error.message; return; }
+  $('lClave').value = '';
+});
+
+async function salir() { await sb.auth.signOut(); }
+
+// Google y Microsoft ('azure' en Supabase). El registro libre está cerrado: solo entra una cuenta
+// cuyo email ya haya dado de alta un admin (Supabase la vincula al usuario existente por el email,
+// si el proveedor lo manda verificado: en Azure eso exige el claim opcional xms_edov).
+const PROVEEDOR = { google: 'Google', azure: 'Microsoft' };
+async function entrarCon(proveedor) {
+  $('lErr').textContent = '';
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: proveedor,
+    // Azure no manda el email si no se pide el scope.
+    options: { redirectTo: location.origin + location.pathname, scopes: proveedor === 'azure' ? 'email' : undefined },
+  });
+  if (error) $('lErr').textContent = /provider is not enabled/i.test(error.message) ? `El ingreso con ${PROVEEDOR[proveedor]} todavía no está habilitado.` : error.message;
+}
+// Si Google/Supabase rechazó el ingreso, vuelve con ?error=… (o #error=…): se muestra y se limpia la URL.
+(function errorDeVuelta() {
+  const u = new URLSearchParams(location.search + '&' + location.hash.replace(/^#/, ''));
+  const d = u.get('error_description'); if (!d) return;
+  $('lErr').textContent = /signups? not allowed|not allowed for this instance/i.test(d)
+    ? 'Esa cuenta no está dada de alta en el panel. Pedile a un administrador que te agregue con ese mismo email.'
+    : d.replace(/\+/g, ' ');
+  history.replaceState(null, '', location.pathname);
+})();
+
+// supabase-js guarda la sesión y la renueva solo; acá solo se reacciona a los cambios.
+sb.auth.onAuthStateChange((evento, sesion) => {
+  if (evento === 'TOKEN_REFRESHED') return;
+  setTimeout(() => entrar(sesion), 0); // fuera del callback: supabase-js no quiere consultas adentro
+});
+
+async function entrar(sesion) {
+  if (!sesion) { YO = null; Object.keys(DATOS).forEach((k) => delete DATOS[k]); mostrar('vLogin'); return; }
+  const { data, error } = await sb.from('usuarios_panel').select('*').eq('user_id', sesion.user.id).maybeSingle();
+  if (error || !data || !data.activo) { $('saEmail').textContent = sesion.user.email; mostrar('vSinAcceso'); return; }
+  YO = data;
+  $('sfNombre').textContent = YO.nombre || YO.email;
+  $('sfRol').textContent = etq('rol', YO.rol);
+  armarNav(); mostrar('vApp'); ruta();
+}
+
+// ══════════════════════════════════════════════════════════════
+// Navegación
+// ══════════════════════════════════════════════════════════════
+const ICO = {
+  resumen: '<path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/>',
+  interesados: '<circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 014-4h6a4 4 0 014 4v2M16 3.1a4 4 0 010 7.8M22 21v-2a4 4 0 00-3-3.9"/>',
+  modelos: '<path d="M5 17h14M6 17l1.5-6h9L18 17M7 11l2-4h6l2 4"/><circle cx="8" cy="17" r="2"/><circle cx="16" cy="17" r="2"/>',
+  agenda: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  vehiculos: '<path d="M14.7 6.3a4 4 0 00-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 005.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/>',
+  conversaciones: '<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>',
+  usuarios: '<path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>',
+};
+// area: qué rol ve cada vista (admin ve todo). Tiene que coincidir con byd.puede_ver en la base:
+// esto solo arma el menú, el que corta de verdad es RLS.
+const VISTAS = [
+  { id: 'resumen', t: 'Resumen', sec: null, area: 'comun', ico: 'resumen', fn: vResumen },
+  { id: 'interesados', t: 'Interesados', sec: 'Pre Venta', area: 'preventa', ico: 'interesados', fn: vInteresados },
+  { id: 'modelos', t: 'Modelos consultados', sec: 'Pre Venta', area: 'preventa', ico: 'modelos', fn: vModelos },
+  { id: 'testdrives', t: 'Agenda de test drives', sec: 'Pre Venta', area: 'preventa', ico: 'agenda', fn: vTestdrives },
+  { id: 'vehiculos', t: 'Clientes y vehículos', sec: 'Post Venta', area: 'posventa', ico: 'vehiculos', fn: vVehiculos },
+  { id: 'taller', t: 'Agenda de taller', sec: 'Post Venta', area: 'posventa', ico: 'agenda', fn: vTaller },
+  { id: 'conversaciones', t: 'Conversaciones', sec: 'Interacciones', area: 'comun', ico: 'conversaciones', fn: vConversaciones },
+  { id: 'usuarios', t: 'Usuarios', sec: 'Administración', area: 'admin', ico: 'usuarios', fn: vUsuarios },
+];
+const puede = (area) => YO && (YO.rol === 'admin' || area === 'comun' || area === YO.rol);
+const visibles = () => VISTAS.filter((v) => puede(v.area));
+
+function armarNav() {
+  let html = '', sec;
+  for (const v of visibles()) {
+    if (v.sec !== sec && v.sec) html += `<div class="nsec">${esc(v.sec)}</div>`;
+    sec = v.sec;
+    html += `<a class="ni" href="#/${v.id}" data-id="${v.id}" data-label="${esc(v.t)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICO[v.ico]}</svg>${esc(v.t)}</a>`;
+  }
+  $('nav').innerHTML = html;
+}
+function toggleSb() { $('sb').classList.toggle('collapsed'); try { localStorage.setItem('byd.sb', $('sb').classList.contains('collapsed') ? '1' : ''); } catch (e) {} }
+try { if (localStorage.getItem('byd.sb')) $('sb').classList.add('collapsed'); } catch (e) {}
+
+window.addEventListener('hashchange', ruta);
+let VISTA = null;
+function ruta() {
+  if (!YO) return;
+  const [id, arg] = location.hash.replace(/^#\/?/, '').split('/');
+  const v = visibles().find((x) => x.id === id) || visibles()[0];
+  VISTA = v;
+  document.querySelectorAll('.ni').forEach((a) => a.classList.toggle('on', a.dataset.id === v.id));
+  $('topT').textContent = (v.sec && v.sec !== 'Interacciones' && v.sec !== 'Administración' ? v.sec + ' · ' : '') + v.t;
+  pintar(v, arg ? decodeURIComponent(arg) : null);
+}
+async function pintar(v, arg) {
+  $('vista').innerHTML = '<div class="loading"><div class="spin"></div>Cargando…</div>';
+  try { await v.fn(arg); }
+  catch (e) { console.error(e); $('vista').innerHTML = `<div class="empty">No se pudieron leer los datos: ${esc(e.message || e)}</div>`; }
+}
+function recargar() { Object.keys(DATOS).forEach((k) => delete DATOS[k]); ruta(); }
+
+// Lee una vista de byd (con caché hasta "Actualizar"). RLS decide qué filas vuelven.
+async function leer(tabla, orden, asc = false) {
+  if (DATOS[tabla]) return DATOS[tabla];
+  let q = sb.from(tabla).select('*');
+  if (orden) q = q.order(orden, { ascending: asc, nullsFirst: false });
+  const { data, error } = await q;
+  if (error) throw error;
+  cargadoEn = new Date(); $('topAct').textContent = 'Datos de las ' + fh(cargadoEn);
+  return (DATOS[tabla] = data);
+}
+
+// ══════════════════════════════════════════════════════════════
+// Filtros con chips. Cada vista declara sus grupos; el contador de cada
+// chip dice cuántas filas quedarían eligiéndolo (con los demás grupos aplicados),
+// así nunca se elige un filtro que deja la lista vacía sin saberlo.
+// ══════════════════════════════════════════════════════════════
+const FILTROS = {};   // { vista: { grupo: valor | null, _q: texto } }
+const valores = (g, r) => [].concat(g.val(r)).map((v) => v ?? '');
+// Filas que pasan todos los grupos (menos `excepto`, para contar ese grupo) y el buscador.
+function filtrar(vista, filas, grupos, excepto) {
+  const f = FILTROS[vista] || {}; const q = (f._q || '').toLowerCase();
+  return filas.filter((r) => grupos.every((g) => g.id === excepto || f[g.id] == null || valores(g, r).includes(f[g.id]))
+    && (!q || JSON.stringify(r).toLowerCase().includes(q)));
+}
+function chipsHTML(vista, filas, grupos, buscador) {
+  const f = FILTROS[vista] || (FILTROS[vista] = {});
+  let html = '<div class="filtros">';
+  if (buscador) html += `<input class="fc buscar" placeholder="Buscar…" value="${esc(f._q || '')}" oninput="setQ('${vista}', this.value)">`;
+  for (const g of grupos) {
+    const base = filtrar(vista, filas, grupos, g.id);
+    const cuenta = new Map();
+    for (const r of base) for (const v of valores(g, r)) cuenta.set(v, (cuenta.get(v) || 0) + 1);
+    const vals = g.orden ? g.orden.filter((v) => cuenta.has(v)).concat([...cuenta.keys()].filter((v) => !g.orden.includes(v))) : [...cuenta.keys()].sort();
+    if (!vals.length) continue;
+    html += `<div class="chips"><span class="grupo">${esc(g.t)}</span>`;
+    html += `<button class="chip ${f[g.id] == null ? 'chip-on' : ''}" onclick="setF('${vista}','${g.id}',null)">Todos <span class="n">${base.length}</span></button>`;
+    for (const v of vals) html += `<button class="chip ${f[g.id] === v ? 'chip-on' : ''}" onclick='setF(${JSON.stringify(vista)},${JSON.stringify(g.id)},${JSON.stringify(v)})'>${esc(g.etq ? g.etq(v) : v)} <span class="n">${cuenta.get(v)}</span></button>`;
+    html += '</div>';
+  }
+  return html + '</div>';
+}
+const aplicar = (vista, filas, grupos) => filtrar(vista, filas, grupos);
+function setF(vista, g, v) { (FILTROS[vista] ||= {})[g] = v; ruta(); }
+let tQ;
+function setQ(vista, q) {
+  (FILTROS[vista] ||= {})._q = q; clearTimeout(tQ);
+  tQ = setTimeout(() => { ruta(); setTimeout(() => { const i = document.querySelector('.buscar'); if (i) { i.focus(); i.setSelectionRange(q.length, q.length); } }, 30); }, 250);
+}
+
+const kpi = (cls, lbl, val, sub) => `<div class="kpi ${cls}"><div class="kpi-lbl">${esc(lbl)}</div><div class="kpi-val">${val}</div>${sub ? `<div class="kpi-sub">${sub}</div>` : ''}</div>`;
+const nombreDe = (r) => esc(r.nombre || r.titular || ('+' + (r.wa_id || '')));
+const linkConv = (wa) => wa ? `<a class="btn bg sm" href="#/conversaciones/${encodeURIComponent(wa)}" onclick="event.stopPropagation()">💬</a>` : '';
+
+// ══════════════════════════════════════════════════════════════
+// Vistas
+// ══════════════════════════════════════════════════════════════
+async function vResumen() {
+  const pre = puede('preventa'), post = puede('posventa');
+  const [convs, msgs, , leads, mc, tds, veh, turnos] = await Promise.all([   // modelos: solo para las fotos del ranking
+    leer('v_conversaciones', 'updated_at'), leer('v_mensajes', 'id', true), leer('modelos', 'orden', true),
+    pre ? leer('v_leads', 'created_at') : [], pre ? leer('v_modelos_consultados', 'fecha') : [],
+    pre ? leer('v_testdrives', 'inicio', true) : [], post ? leer('v_vehiculos', 'patente', true) : [],
+    post ? leer('v_turnos_service', 'inicio', true) : []]);
+  const ahora = new Date(), hace7 = new Date(ahora - 7 * 864e5);
+  const activas7 = convs.filter((c) => fd(c.updated_at) >= hace7).length;
+  const msgsCliente = msgs.filter((m) => m.autor === 'cliente').length;
+  let html = '<div class="kpi-grid">';
+  html += kpi('k-info', 'Conversaciones', convs.length, `${activas7} activas en los últimos 7 días`);
+  html += kpi('k-activo', 'Mensajes de clientes', msgsCliente, `${msgs.length} mensajes en total`);
+  if (pre) {
+    html += kpi('k-oport', 'Interesados', new Set(leads.map((l) => l.wa_id)).size, `${leads.length} perfiles completados`);
+    const prox = tds.filter((t) => t.estado === 'confirmada' && fd(t.inicio) > ahora);
+    html += kpi('k-oport', 'Test drives próximos', prox.length, prox[0] ? 'El próximo: ' + ffh(fechaLocal(prox[0].inicio_local)) : 'Sin reservas futuras');
+  }
+  if (post) {
+    const venc = veh.filter((v) => v.estado_service === 'vencido').length;
+    html += kpi(venc ? 'k-alerta' : 'k-info', 'Services vencidos', venc, `${veh.length} vehículos registrados`);
+    const tp = turnos.filter((t) => t.estado === 'confirmado' && fd(t.inicio) > ahora);
+    html += kpi('k-activo', 'Turnos de taller', tp.length, tp[0] ? 'El próximo: ' + ffh(fechaLocal(tp[0].inicio_local)) : 'Sin turnos futuros');
+  }
+  html += '</div><div class="dos">';
+  if (pre) html += `<div class="card"><div class="card-t">Modelos más consultados</div>${ranking(mc, 5)}<a class="btn bg sm" style="margin-top:10px" href="#/modelos">Ver todos</a></div>`;
+  // Actividad: últimos mensajes de clientes
+  const ult = msgs.filter((m) => m.autor === 'cliente').slice(-8).reverse();
+  const nom = new Map(convs.map((c) => [c.wa_id, c.nombre]));
+  html += `<div class="card"><div class="card-t">Últimos mensajes de clientes</div>${ult.length ? '<table class="tbl"><tbody>' + ult.map((m) =>
+    `<tr class="click" onclick="location.hash='#/conversaciones/${encodeURIComponent(m.wa_id)}'"><td class="u-mono u-s10-mt" style="white-space:nowrap">${ffh(fd(m.fecha))}</td><td><b style="font-weight:600">${esc(nom.get(m.wa_id) || m.wa_id)}</b><div class="u-s10-mt">${esc((m.texto || '').slice(0, 90))}</div></td></tr>`).join('') + '</tbody></table>' : '<div class="empty">Sin mensajes todavía.</div>'}</div>`;
+  html += '</div>';
+  $('vista').innerHTML = html;
+}
+
+// Ranking de modelos a partir de v_modelos_consultados. Cuenta conversaciones distintas por modelo,
+// no menciones: un modelo recomendado cinco veces a la misma persona cuenta una.
+function ranking(filas, max) {
+  const porModelo = new Map();
+  for (const r of filas) {
+    const x = porModelo.get(r.slug) || { modelo: r.modelo, slug: r.slug, motor: r.motorizacion, gente: new Set(), origenes: {} };
+    x.gente.add(r.wa_id); x.origenes[r.origen] = (x.origenes[r.origen] || 0) + 1; porModelo.set(r.slug, x);
+  }
+  const lista = [...porModelo.values()].sort((a, b) => b.gente.size - a.gente.size).slice(0, max || 99);
+  if (!lista.length) return '<div class="empty">Sin datos con estos filtros.</div>';
+  const top = lista[0].gente.size;
+  const img = new Map((DATOS.modelos || []).map((m) => [m.slug, m.imagen_url]));
+  return lista.map((x) => `<div class="rk">${img.get(x.slug) ? `<img src="${esc(img.get(x.slug))}" alt="" loading="lazy">` : '<span></span>'}
+    <div><div class="rk-n">${esc(x.modelo)} ${bx('x', null, etq('motor', x.motor))}</div>
+      <div class="u-s10-mt">${Object.entries(x.origenes).map(([o, n]) => `${esc(etq('origen', o))} <span class="u-mono">${n}</span>`).join(' · ')}</div>
+      <div class="barra"><div style="width:${Math.round(x.gente.size / top * 100)}%"></div></div></div>
+    <div class="rk-v">${x.gente.size}<div class="u-s10-mt" style="font-weight:400;font-family:Montserrat">personas</div></div></div>`).join('');
+}
+
+async function vInteresados() {
+  const filas = await leer('v_leads', 'created_at');
+  const grupos = [
+    { id: 'estado', t: 'Estado', val: (r) => r.estado, etq: (v) => etq('estado_lead', v) },
+    { id: 'motor', t: 'Motor', val: (r) => r.motor, etq: (v) => etq('motor', v) },
+    { id: 'carroceria', t: 'Carrocería', val: (r) => r.carroceria, etq: (v) => etq('carroceria', v) },
+    { id: 'presupuesto', t: 'Presupuesto', val: (r) => r.presupuesto, etq: (v) => etq('presupuesto', v), orden: ['hasta_25', '25_32', '32_40', 'mas_40'] },
+    { id: 'uso', t: 'Uso', val: (r) => r.uso, etq: (v) => etq('uso', v) },
+  ];
+  const vis = aplicar('interesados', filas, grupos);
+  $('vista').innerHTML = chipsHTML('interesados', filas, grupos, true) + `<div class="card u-ov"><table class="tbl"><thead><tr>
+    <th>Fecha</th><th>Interesado</th><th>Perfil</th><th>Recomendados</th><th>Elegido</th><th>Estado</th><th></th></tr></thead><tbody>${vis.map((r) => `<tr>
+    <td class="u-mono u-s10-mt" style="white-space:nowrap">${ffh(fd(r.created_at))}</td>
+    <td><b style="font-weight:600">${nombreDe(r)}</b><div class="u-s10-mt u-mono">+${esc(r.wa_id)}</div></td>
+    <td><div class="perfil">${[etq('presupuesto', r.presupuesto), etq('carroceria', r.carroceria), etq('motor', r.motor), etq('uso', r.uso), r.ocupantes ? r.ocupantes + ' ocupantes' : '', r.perfil && r.perfil.carga_casa ? etq('carga_casa', r.perfil.carga_casa) : '']
+      .filter(Boolean).map((t) => `<span class="bx xm">${esc(t)}</span>`).join('')}</div>
+      ${(r.perfil && r.perfil.prioridades || []).length ? `<div class="u-s10-mt" style="margin-top:3px">Prioriza: ${esc(r.perfil.prioridades.join(', '))}</div>` : ''}</td>
+    <td class="u-s10-mt">${esc((r.recomendados || []).join(', '))}</td>
+    <td>${r.modelo_elegido_nombre ? `<b style="font-weight:600">${esc(r.modelo_elegido_nombre)}</b>` : '<span class="u-c-mt">—</span>'}</td>
+    <td>${bx('estado_lead', r.estado)}</td><td>${linkConv(r.wa_id)}</td></tr>`).join('')}</tbody></table>
+    ${vis.length ? '' : '<div class="empty">Ningún interesado con estos filtros.</div>'}</div>`;
+}
+
+async function vModelos() {
+  const [filas, modelos] = await Promise.all([leer('v_modelos_consultados', 'fecha'), leer('modelos', 'orden', true)]);
+  const grupos = [
+    { id: 'origen', t: 'Cómo', val: (r) => r.origen, etq: (v) => etq('origen', v), orden: ['ficha', 'mencion', 'recomendado', 'elegido', 'test_drive'] },
+    { id: 'motor', t: 'Motor', val: (r) => r.motorizacion, etq: (v) => etq('motor', v) },
+    { id: 'segmento', t: 'Carrocería', val: (r) => r.segmento, etq: (v) => etq('carroceria', v) },
+  ];
+  const vis = aplicar('modelos', filas, grupos);
+  const sinConsultas = modelos.filter((m) => m.activo && !vis.some((r) => r.slug === m.slug));
+  $('vista').innerHTML = chipsHTML('modelos', filas, grupos) + `<div class="dos">
+    <div class="card"><div class="card-t">Ranking · personas que lo vieron</div>${ranking(vis)}</div>
+    <div class="card"><div class="card-t">Cómo se mide</div><p class="hint">Cada modelo cuenta <b>personas distintas</b>, no menciones. Suma las fichas que mandó el asistente, los modelos que recomendó según el perfil, el que eligió el interesado y los test drives reservados. Con los chips de arriba se mira una sola fuente.</p>
+      ${sinConsultas.length ? `<div class="sec" style="margin-top:14px">Sin consultas con estos filtros</div><div class="perfil">${sinConsultas.map((m) => `<span class="bx xm">${esc(m.nombre)}</span>`).join('')}</div>` : ''}</div></div>`;
+}
+
+// ── Agendas: semana de lunes a sábado (los dos horarios del bot no atienden domingo) ──
+const SEMANA = { testdrives: 0, taller: 0 };   // desplazamiento en semanas desde la actual
+function lunes(off) { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7) + off * 7); return d; }
+function agendaHTML(vista, filas, ev) {
+  const l = lunes(SEMANA[vista]); const dias = [...Array(6)].map((_, i) => new Date(l.getFullYear(), l.getMonth(), l.getDate() + i));
+  const hoy = new Date();
+  const cab = `<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+    <button class="btn bg sm" onclick="SEMANA['${vista}']--;ruta()">◀</button><button class="btn bg sm" onclick="SEMANA['${vista}']=0;ruta()">Esta semana</button><button class="btn bg sm" onclick="SEMANA['${vista}']++;ruta()">▶</button>
+    <span class="u-s10-mt">Semana del ${ff(dias[0])} al ${ff(dias[5])}</span></div>`;
+  return cab + '<div class="semana">' + dias.map((d) => {
+    const del = filas.filter((r) => mismoDia(fechaLocal(r.inicio_local), d)).sort((a, b) => a.inicio_local.localeCompare(b.inicio_local));
+    return `<div class="dia ${mismoDia(d, hoy) ? 'hoy' : ''}"><div class="dia-h"><span>${DIAS[d.getDay()]} ${p2(d.getDate())}/${p2(d.getMonth() + 1)}</span><span class="u-mono u-c-mt">${del.length || ''}</span></div>
+      <div class="dia-b">${del.map(ev).join('') || '<div class="u-s10-mt" style="padding:6px">—</div>'}</div></div>`;
+  }).join('') + '</div>';
+}
+function proximosHTML(filas, fila) {
+  const ahora = new Date(); const fut = filas.filter((r) => fd(r.inicio) >= ahora).sort((a, b) => a.inicio.localeCompare(b.inicio));
+  const pas = filas.filter((r) => fd(r.inicio) < ahora).sort((a, b) => b.inicio.localeCompare(a.inicio));
+  return `<div class="card u-ov" style="margin-top:12px"><div class="card-t">Todas las reservas</div><table class="tbl"><tbody>${fut.concat(pas).map(fila).join('')}</tbody></table>${filas.length ? '' : '<div class="empty">No hay reservas con estos filtros.</div>'}</div>`;
+}
+
+async function vTestdrives() {
+  const filas = await leer('v_testdrives', 'inicio', true);
+  const grupos = [
+    { id: 'sucursal', t: 'Sucursal', val: (r) => r.sucursal },
+    { id: 'modelo', t: 'Modelo', val: (r) => r.modelo },
+    { id: 'estado', t: 'Estado', val: (r) => r.estado, etq: (v) => etq('td', v), orden: ['confirmada', 'realizada', 'ausente', 'cancelada'] },
+  ];
+  const vis = aplicar('testdrives', filas, grupos);
+  $('vista').innerHTML = chipsHTML('testdrives', filas, grupos) + agendaHTML('testdrives', vis, (r) =>
+    `<div class="ev ${r.estado === 'cancelada' ? 'cancel' : ''}" title="${esc(r.estado)}"><span class="h">${fh(fechaLocal(r.inicio_local))}</span> ${esc(r.modelo.replace('BYD ', ''))}
+      <div>${nombreDe(r)}</div><div class="s">${esc(r.sucursal)} · ${esc(etq('td', r.estado))}</div></div>`)
+    + proximosHTML(vis, (r) => `<tr><td class="u-mono" style="white-space:nowrap">${ffh(fechaLocal(r.inicio_local))}</td><td style="white-space:nowrap">${esc(r.modelo)}</td><td style="white-space:nowrap">${esc(r.sucursal)}</td>
+      <td><b style="font-weight:600">${nombreDe(r)}</b><div class="u-s10-mt">${esc([r.dni && 'DNI ' + r.dni, r.email].filter(Boolean).join(' · '))}</div></td><td>${bx('td', r.estado, etq('td', r.estado))}</td><td>${linkConv(r.wa_id)}</td></tr>`);
+}
+ETQ.td = { confirmada: 'Confirmada', realizada: 'Realizada', cancelada: 'Cancelada', ausente: 'Ausente' };
+ETQ.turno = { confirmado: 'Confirmado', realizado: 'Realizado', cancelado: 'Cancelado', ausente: 'Ausente' };
+
+async function vTaller() {
+  const [filas, sucursales] = await Promise.all([leer('v_turnos_service', 'inicio', true), leer('sucursales', 'id', true)]);
+  const grupos = [
+    { id: 'sucursal', t: 'Sucursal', val: (r) => r.sucursal },
+    { id: 'estado', t: 'Estado', val: (r) => r.estado, etq: (v) => etq('turno', v), orden: ['confirmado', 'realizado', 'ausente', 'cancelado'] },
+  ];
+  const vis = aplicar('taller', filas, grupos);
+  // Cupo: cuántos turnos confirmados comparten sucursal y hora, contra cupos_taller.
+  const ocup = new Map(); for (const r of filas) if (r.estado === 'confirmado') { const k = r.sucursal_id + '|' + r.inicio; ocup.set(k, (ocup.get(k) || 0) + 1); }
+  const talleres = sucursales.filter((s) => s.tiene_taller);
+  $('vista').innerHTML = chipsHTML('taller', filas, grupos)
+    + `<p class="hint" style="margin-bottom:10px">Turnos de lunes a viernes de 8 a 16 h y sábados de 8 a 11 h. Cupo por hora: ${talleres.map((s) => `${esc(s.nombre_corto)} <span class="u-mono">${s.cupos_taller}</span>`).join(' · ')}.</p>`
+    + agendaHTML('taller', vis, (r) => {
+      const n = ocup.get(r.sucursal_id + '|' + r.inicio) || 0;
+      return `<div class="ev ${r.estado === 'cancelado' ? 'cancel' : ''}" style="border-left-color:var(--teal)"><span class="h" style="color:var(--teal)">${fh(fechaLocal(r.inicio_local))}</span> <span class="u-mono">${esc(r.patente)}</span>
+      <div>${esc(r.modelo.replace('BYD ', ''))} · ${esc(r.titular || '')}</div><div class="s">${esc(r.sucursal)} · cupo <span class="u-mono">${n}/${r.cupos_taller}</span></div></div>`;
+    })
+    + proximosHTML(vis, (r) => `<tr><td class="u-mono" style="white-space:nowrap">${ffh(fechaLocal(r.inicio_local))}</td><td class="u-mono">${esc(r.patente)}</td><td>${esc(r.modelo)}<div class="u-s10-mt">${esc(r.titular || '')}</div></td>
+      <td>${esc(r.service || '—')}<div class="u-s10-mt">${r.costo_ars ? 'ref. ' + plata(r.costo_ars) : ''}${r.km_informado ? ' · ' + Number(r.km_informado).toLocaleString('es-AR') + ' km informados' : ''}</div></td>
+      <td>${esc(r.sucursal)}</td><td>${bx('turno', r.estado, etq('turno', r.estado))}</td><td>${linkConv(r.wa_id)}</td></tr>`);
+}
+
+async function vVehiculos() {
+  const filas = await leer('v_vehiculos', 'proximo_fecha', true);
+  const grupos = [
+    { id: 'estado', t: 'Service', val: (r) => r.estado_service, etq: (v) => etq('estado_service', v), orden: ['vencido', 'proximo', 'al_dia'] },
+    { id: 'modelo', t: 'Modelo', val: (r) => r.modelo },
+    { id: 'motor', t: 'Motor', val: (r) => r.motorizacion, etq: (v) => etq('motor', v) },
+    { id: 'turno', t: 'Turno', val: (r) => r.turno_futuro ? 'con' : 'sin', etq: (v) => v === 'con' ? 'Con turno' : 'Sin turno' },
+  ];
+  const vis = aplicar('vehiculos', filas, grupos);
+  $('vista').innerHTML = chipsHTML('vehiculos', filas, grupos, true) + `<div class="card u-ov"><table class="tbl"><thead><tr>
+    <th>Patente</th><th>Vehículo</th><th>Titular</th><th>Km hoy (est.)</th><th>Próximo service</th><th>Estado</th><th>Turno</th><th></th></tr></thead><tbody>${vis.map((r) => {
+      const ps = r.proximo_service || {}; const us = r.ultimo_service;
+      return `<tr><td class="u-mono"><b>${esc(r.patente)}</b></td>
+      <td>${esc(r.modelo)}<div class="u-s10-mt">${esc([r.version, r.anio, 'entregado ' + ff(fechaLocal(r.fecha_entrega))].filter(Boolean).join(' · '))}</div></td>
+      <td><b style="font-weight:600">${esc(r.titular || '—')}</b><div class="u-s10-mt">${esc([r.wa_id && '+' + r.wa_id, r.email].filter(Boolean).join(' · '))}</div></td>
+      <td class="u-mono">${r.km_estimado ? Number(r.km_estimado).toLocaleString('es-AR') : '—'}</td>
+      <td>${ps.nombre ? esc(ps.nombre) : '—'}<div class="u-s10-mt">${ps.fecha_estimada ? 'estimado ' + ff(fechaLocal(ps.fecha_estimada)) : ''}${ps.costo_ars ? ' · ref. ' + plata(ps.costo_ars) : ''}</div>
+        ${us ? `<div class="u-s10-mt">Último: ${ff(fechaLocal(us.fecha))} · ${Number(us.km).toLocaleString('es-AR')} km · ${esc(us.sucursal)}</div>` : ''}</td>
+      <td>${r.estado_service ? bx('estado_service', r.estado_service) : '—'}</td>
+      <td>${r.turno_futuro ? `<span class="bx xt">${ffh(fd(r.turno_futuro.inicio))}</span><div class="u-s10-mt">${esc(r.turno_futuro.sucursal)}</div>` : '<span class="u-c-mt">—</span>'}</td>
+      <td>${linkConv(r.wa_id)}</td></tr>`;
+    }).join('')}</tbody></table>${vis.length ? '' : '<div class="empty">Ningún vehículo con estos filtros.</div>'}</div>`;
+}
+
+async function vConversaciones(wa) {
+  const [convs, msgs] = await Promise.all([leer('v_conversaciones', 'updated_at'), leer('v_mensajes', 'id', true)]);
+  const grupos = [
+    { id: 'intencion', t: 'Intención', val: (r) => r.intencion || 'sin_definir', etq: (v) => v === 'sin_definir' ? 'Sin definir' : etq('intencion', v) },
+    { id: 'etapa', t: 'Etapa', val: (r) => r.etapa || 'inicio', etq: (v) => etq('etapa', v) },
+    { id: 'cliente', t: 'Tipo', val: (r) => r.tiene_vehiculo ? 'cliente' : 'prospecto', etq: (v) => v === 'cliente' ? 'Tiene un BYD' : 'Prospecto' },
+  ];
+  const vis = aplicar('conversaciones', convs, grupos);
+  const sel = wa || (vis[0] && vis[0].wa_id);
+  const c = convs.find((x) => x.wa_id === sel);
+  const lista = vis.map((x) => `<div class="conv-i ${x.wa_id === sel ? 'on' : ''}" onclick="location.hash='#/conversaciones/${encodeURIComponent(x.wa_id)}'">
+    <div style="display:flex;gap:6px;align-items:center"><span class="nom">${esc(x.nombre || '+' + x.wa_id)}</span><span class="u-s10-mt u-mla u-mono">${ff(fd(x.updated_at))}</span></div>
+    <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">${x.intencion ? bx('intencion', x.intencion) : ''}${x.etapa ? `<span class="bx xm">${esc(etq('etapa', x.etapa))}</span>` : ''}<span class="u-s10-mt u-mla">${x.mensajes_cliente} msj</span></div></div>`).join('');
+  let chat = '<div class="empty">Elegí una conversación.</div>', cab = '';
+  if (c) {
+    // La llamada del agente a una herramienta y su resultado son dos filas: se muestra solo el resultado.
+    const ms = msgs.filter((m) => m.wa_id === c.wa_id && (m.texto || m.autor === 'herramienta'));
+    let ult = null;
+    chat = ms.map((m) => {
+      const d = fd(m.fecha); let sep = '';
+      if (d && !mismoDia(d, ult)) { sep = `<div class="dia-sep">${DIAS[d.getDay()]} ${ff(d)}</div>`; ult = d; }
+      if (m.autor === 'herramienta' || !m.texto) return sep + `<div class="msg herramienta"><div class="burbuja">⚙ ${esc(m.herramienta)}</div></div>`;
+      return sep + `<div class="msg ${m.autor}"><div class="burbuja">${esc(m.texto)}</div><div class="meta">${m.autor === 'agente' ? 'Asistente' : 'Cliente'}${m.accion && m.accion !== 'responder' ? ' · ' + esc(m.accion.replace(/_/g, ' ')) : ''}${m.modelo_slug ? ' · ' + esc(m.modelo_slug) : ''}</div></div>`;
+    }).join('') || '<div class="empty">Sin mensajes guardados.</div>';
+    const perf = (c.contexto && c.contexto.perfil) || null;
+    cab = `<b style="font-weight:700">${esc(c.nombre || '')}</b><span class="u-mono u-s10-mt">+${esc(c.wa_id)}</span>
+      ${c.intencion ? bx('intencion', c.intencion) : ''}${c.etapa ? `<span class="bx xm">${esc(etq('etapa', c.etapa))}</span>` : ''}${c.tiene_vehiculo ? '<span class="bx xb">Tiene un BYD</span>' : ''}
+      ${c.modelo_actual_nombre ? `<span class="bx xv">Viendo: ${esc(c.modelo_actual_nombre)}</span>` : ''}
+      ${perf ? `<div class="perfil" style="width:100%">${[etq('presupuesto', perf.presupuesto), etq('carroceria', perf.carroceria), etq('motor', perf.motor), etq('uso', perf.uso)].map((t) => `<span class="bx xm">${esc(t)}</span>`).join('')}</div>` : ''}`;
+  }
+  $('vista').innerHTML = chipsHTML('conversaciones', convs, grupos, true) + `<div class="conv"><div class="conv-l">${lista || '<div class="empty">Ninguna conversación con estos filtros.</div>'}</div>
+    <div class="conv-c">${c ? `<div class="conv-h">${cab}</div>` : ''}<div class="chat" id="chat">${chat}</div></div></div>`;
+  const ch = $('chat'); if (ch) ch.scrollTop = ch.scrollHeight;
+}
+
+// ── Mi contraseña: cada usuario cambia la suya con su propia sesión (no pasa por la Edge Function).
+// Si entró solo con Google/Microsoft y no tenía contraseña, esto le crea una para entrar también con email.
+async function abrirClave() {
+  const { data: { user } } = await sb.auth.getUser();
+  const tieneClave = (user?.identities || []).some((i) => i.provider === 'email');
+  $('mcT').textContent = tieneClave ? 'Cambiar mi contraseña' : 'Crear una contraseña';
+  $('mcHint').textContent = tieneClave
+    ? 'Si te la dio un administrador, reemplazala por una que solo sepas vos.'
+    : 'Hoy entrás con Google o Microsoft. Con una contraseña también vas a poder entrar con tu email.';
+  $('mcUser').value = user?.email || '';
+  $('mcNueva').value = $('mcRepite').value = ''; $('mcErr').textContent = '';
+  $('moClave').classList.add('open'); setTimeout(() => $('mcNueva').focus(), 50);
+}
+function cerrarClave() { $('moClave').classList.remove('open'); }
+async function guardarClave() {
+  const n = $('mcNueva').value, r = $('mcRepite').value;
+  if (n.length < 8) { $('mcErr').textContent = 'Tiene que tener al menos 8 caracteres.'; return; }
+  if (n !== r) { $('mcErr').textContent = 'Las dos contraseñas no coinciden.'; return; }
+  $('mcBtn').disabled = true; $('mcErr').textContent = '';
+  const { error } = await sb.auth.updateUser({ password: n });
+  $('mcBtn').disabled = false;
+  if (error) {
+    $('mcErr').textContent = /different from the old/i.test(error.message) ? 'Tiene que ser distinta de la actual.'
+      : /weak|short|least/i.test(error.message) ? 'La contraseña es muy débil o muy corta.'
+      : /reauthenticat/i.test(error.message) ? 'Por seguridad, salí y volvé a entrar antes de cambiarla.'
+      : error.message;
+    return;
+  }
+  cerrarClave(); toast('Contraseña actualizada.');
+}
+
+// ── Usuarios (solo admin): pasa por la Edge Function, que tiene la service_role ──
+let USUARIOS = [], EDITANDO = null;
+async function api(cuerpo) {
+  const { data: { session } } = await sb.auth.getSession();
+  const r = await fetch(FN_USUARIOS, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token, apikey: SUPABASE_KEY }, body: JSON.stringify(cuerpo) });
+  const j = await r.json().catch(() => ({ error: 'Respuesta inválida (' + r.status + ')' }));
+  if (!r.ok || j.error) throw new Error(j.error || 'Error ' + r.status);
+  return j;
+}
+async function vUsuarios() {
+  USUARIOS = (await api({ accion: 'listar' })).usuarios;
+  $('vista').innerHTML = `<div style="display:flex;gap:10px;align-items:center;margin-bottom:12px"><p class="hint">Los usuarios entran con Google, Microsoft o email y contraseña (Supabase Auth). El registro libre está cerrado: solo se crean desde acá.</p>
+    <button class="btn bp u-mla" onclick="abrirModal()">+ Nuevo usuario</button></div>
+    <div class="card u-ov"><table class="tbl"><thead><tr><th>Usuario</th><th>Rol</th><th>Estado</th><th>Último ingreso</th><th></th></tr></thead><tbody>${USUARIOS.map((u) => `<tr>
+    <td><b style="font-weight:600">${esc(u.nombre || '—')}</b><div class="u-s10-mt">${esc(u.email)}</div></td>
+    <td>${bx('x', null, etq('rol', u.rol))}</td><td>${u.activo ? '<span class="bx xg">Activo</span>' : '<span class="bx xm">Inactivo</span>'}</td>
+    <td class="u-mono u-s10-mt">${u.ultimo_ingreso ? ffh(fd(u.ultimo_ingreso)) : 'Nunca'}</td>
+    <td style="white-space:nowrap;text-align:right"><button class="btn bg sm" onclick="abrirModal('${u.user_id}')">Editar</button>
+      ${u.user_id === YO.user_id ? '' : `<button class="btn ${u.activo ? 'brd' : 'bg'} sm" onclick="activar('${u.user_id}', ${!u.activo})">${u.activo ? 'Desactivar' : 'Activar'}</button>`}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function abrirModal(id) {
+  EDITANDO = id ? USUARIOS.find((u) => u.user_id === id) : null;
+  $('muT').textContent = EDITANDO ? 'Editar usuario' : 'Nuevo usuario';
+  $('muEmailG').hidden = !!EDITANDO; $('muEmail').value = '';
+  $('muNombre').value = EDITANDO ? EDITANDO.nombre || '' : '';
+  $('muRol').value = EDITANDO ? EDITANDO.rol : 'preventa'; $('muRol').disabled = EDITANDO && EDITANDO.user_id === YO.user_id;
+  $('muClave').value = '';
+  $('muClaveL').textContent = EDITANDO ? 'Nueva contraseña (opcional)' : 'Contraseña provisoria (opcional)';
+  $('muHint').textContent = EDITANDO ? 'Dejala vacía para no cambiarla.' : 'Vacía: la persona entra solo con Google o Microsoft, con este mismo email. Con contraseña: pasásela por un canal privado.';
+  $('moUsuario').classList.add('open');
+}
+function cerrarModal() { $('moUsuario').classList.remove('open'); }
+async function guardarUsuario() {
+  $('muBtn').disabled = true;
+  try {
+    if (EDITANDO) {
+      await api({ accion: 'actualizar', user_id: EDITANDO.user_id, nombre: $('muNombre').value, rol: $('muRol').value });
+      if ($('muClave').value) await api({ accion: 'clave', user_id: EDITANDO.user_id, clave: $('muClave').value });
+    } else {
+      await api({ accion: 'crear', email: $('muEmail').value, nombre: $('muNombre').value, rol: $('muRol').value, clave: $('muClave').value });
+    }
+    cerrarModal(); toast('Usuario guardado.'); vUsuarios();
+  } catch (e) { toast(e.message, true); }
+  $('muBtn').disabled = false;
+}
+async function activar(id, activo) {
+  try { await api({ accion: 'actualizar', user_id: id, activo }); toast(activo ? 'Usuario activado.' : 'Usuario desactivado.'); vUsuarios(); }
+  catch (e) { toast(e.message, true); }
+}
+
+// Arranque: si no hay sesión guardada, onAuthStateChange dispara INITIAL_SESSION con null → login.
+</script>
+</body>
+</html>
