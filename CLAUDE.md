@@ -53,7 +53,7 @@ Supabase Giwa_Database, schema byd (expuesto en la API)
 
 | Vista | Fuente | Chips |
 |---|---|---|
-| Resumen | todas según rol + mapa de calor "Cuándo escriben" (`v_mensajes` de clientes, día × hora de Argentina, mismo diseño que Grun) | — |
+| Resumen | todas según rol + mapa de calor "Cuándo escriben" (`v_mensajes` de clientes, día × hora de Argentina, mismo diseño que Grun) | **filtro cruzado**: recuadros, celdas y modelos (ver abajo) |
 | Interesados | `v_leads` | estado, motor, carrocería, presupuesto, uso |
 | Modelos consultados | `v_modelos_consultados` | cómo (ficha / recomendado / elegido / test drive), motor, carrocería |
 | Agenda de test drives | `v_testdrives` | sucursal, modelo, estado |
@@ -61,6 +61,13 @@ Supabase Giwa_Database, schema byd (expuesto en la API)
 | Agenda de taller | `v_turnos_service` | sucursal, estado |
 | Conversaciones | `v_conversaciones` + `v_mensajes` | intención, etapa, tipo |
 | Usuarios | Edge Function | — |
+
+**Filtro cruzado del Resumen** (`RES`, `vResumen`): cada recuadro, celda del mapa de calor y
+modelo del ranking es un grupo de personas (`wa_id`); los filtros se combinan (Y) y cada bloque
+se calcula con los filtros de los *otros* bloques, así lo elegido queda resaltado sobre el resto
+apagado. "Ver en…" lleva esas personas a Interesados, Test drives, Vehículos, Taller o
+Conversaciones (`PERSONAS`, barra "Desde el Resumen"); "Limpiar" lo suelta. El cupo del taller
+se cuenta siempre sobre todos los turnos, no sobre el filtro.
 
 Los chips muestran cuántas filas quedan si se elige cada uno (idea del panel de Grun). Las
 agendas son semanales, de lunes a sábado (idea de la agenda del Hospital).

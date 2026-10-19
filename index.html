@@ -141,6 +141,19 @@ select.fc option{background:var(--bg2)}
 .escala .paso{width:17px;height:9px;border-radius:2px}
 #tip{position:fixed;z-index:400;pointer-events:none;opacity:0;background:#000;border:1px solid var(--b);border-radius:7px;padding:7px 10px;font-size:12px;line-height:1.45;white-space:nowrap;transition:opacity .12s;box-shadow:0 6px 22px rgba(0,0,0,.6)}
 #tip b{font-weight:700}#tip span{color:var(--mt)}
+/* Filtro cruzado del Resumen */
+.kpi.f{cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.kpi.f:hover{border-color:var(--accent)}
+.kpi.f.on{box-shadow:0 0 0 2px var(--accent)}
+.kpi.f:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.celda[role=button]{cursor:pointer}
+.heat.filtrando .celda{opacity:.3}
+.heat.filtrando .celda.sel{opacity:1;outline:2px solid var(--tx);outline-offset:1px}
+.filtrando-res{margin-bottom:12px;padding:10px 14px;border-color:rgba(0,144,255,.35)}
+.rk.f{cursor:pointer;border-radius:8px;transition:opacity .15s,background .15s}
+.rk.f:hover{background:rgba(0,144,255,.05)}
+.rk.off{opacity:.35}
+.rk.on{background:var(--blue-a)}
 /* Ranking de modelos */
 .rk{display:grid;grid-template-columns:62px 1fr auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--b-suave)}
 .rk:last-child{border-bottom:none}
@@ -497,6 +510,19 @@ const linkConv = (wa) => wa ? `<a class="btn bg sm" href="#/conversaciones/${enc
 // ══════════════════════════════════════════════════════════════
 // Vistas
 // ══════════════════════════════════════════════════════════════
+// ── Resumen con filtro cruzado ──
+// Cada elemento (recuadro, celda del mapa de calor, modelo del ranking) define un grupo de
+// personas (wa_id). Los filtros se combinan (Y) y todo el Resumen se recalcula para esas
+// personas. Cada bloque se calcula con los filtros de los OTROS bloques, así su propia
+// selección se ve resaltada sobre el resto apagado (mismo gesto que el mapa de calor de Grun).
+const RES = { celda: null, modelo: null, kpi: new Set() };   // celda: {d, h}
+const KPI_T = { conv7: 'Escribieron en los últimos 7 días', mensajes: 'Escribieron alguna vez', interesados: 'Completaron el perfil',
+  td: 'Test drive reservado', venc: 'Service vencido', turnos: 'Turno de taller reservado' };
+function celdaDe(fecha) {
+  const p = Object.fromEntries(HORA_AR.formatToParts(new Date(fecha)).map((x) => [x.type, x.value]));
+  return { d: DOW[p.weekday], h: Number(p.hour) };
+}
+
 async function vResumen() {
   const pre = puede('preventa'), post = puede('posventa');
   const [convs, msgs, , leads, mc, tds, veh, turnos] = await Promise.all([   // modelos: solo para las fotos del ranking
@@ -505,33 +531,98 @@ async function vResumen() {
     pre ? leer('v_testdrives', 'inicio', true) : [], post ? leer('v_vehiculos', 'patente', true) : [],
     post ? leer('v_turnos_service', 'inicio', true) : []]);
   const ahora = new Date(), hace7 = new Date(ahora - 7 * 864e5);
-  const activas7 = convs.filter((c) => fd(c.updated_at) >= hace7).length;
-  const msgsCliente = msgs.filter((m) => m.autor === 'cliente').length;
-  let html = '<div class="kpi-grid">';
-  html += kpi('k-info', 'Conversaciones', convs.length, `${activas7} activas en los últimos 7 días`);
-  html += kpi('k-activo', 'Mensajes de clientes', msgsCliente, `${msgs.length} mensajes en total`);
+  const deCliente = msgs.filter((m) => m.autor === 'cliente' && m.fecha).map((m) => ({ ...m, c: celdaDe(m.fecha) }));
+  const enCelda = (m) => !RES.celda || (m.c.d === RES.celda.d && m.c.h === RES.celda.h);
+  const tdFut = tds.filter((t) => t.estado === 'confirmada' && fd(t.inicio) > ahora);
+  const tuFut = turnos.filter((t) => t.estado === 'confirmado' && fd(t.inicio) > ahora);
+  const vencidos = veh.filter((v) => v.estado_service === 'vencido');
+
+  // Grupo de personas de cada filtro.
+  const grupo = {
+    celda: () => new Set(deCliente.filter(enCelda).map((m) => m.wa_id)),
+    modelo: () => new Set(mc.filter((r) => r.slug === RES.modelo).map((r) => r.wa_id)),
+    conv7: () => new Set(convs.filter((c) => fd(c.updated_at) >= hace7).map((c) => c.wa_id)),
+    mensajes: () => new Set(deCliente.map((m) => m.wa_id)),
+    interesados: () => new Set(leads.map((l) => l.wa_id)),
+    td: () => new Set(tdFut.map((t) => t.wa_id)),
+    venc: () => new Set(vencidos.map((v) => v.wa_id)),
+    turnos: () => new Set(tuFut.map((t) => t.wa_id)),
+  };
+  const activos = [...(RES.celda ? ['celda'] : []), ...(RES.modelo ? ['modelo'] : []), ...RES.kpi];
+  const sets = Object.fromEntries(activos.map((k) => [k, grupo[k]()]));
+  // ¿La persona pasa todos los filtros activos, salvo `excepto`?
+  const pasa = (wa, excepto) => activos.every((k) => k === excepto || sets[k].has(wa));
+  const hay = activos.length > 0;
+
+  // Barra de filtros activos + "Ver en…" con las personas que quedan.
+  let html = '';
+  if (hay) {
+    const personas = new Set([...convs.map((c) => c.wa_id), ...leads.map((l) => l.wa_id), ...tds.map((t) => t.wa_id),
+      ...veh.map((v) => v.wa_id), ...turnos.map((t) => t.wa_id)].filter((w) => w && pasa(w)));
+    const nombreModelo = (mc.find((r) => r.slug === RES.modelo) || {}).modelo;
+    const quitar = { celda: `RES.celda=null`, modelo: `RES.modelo=null` };
+    const etiquetas = activos.map((k) => {
+      const t = k === 'celda' ? `${DIAS_L[RES.celda.d]} ${RES.celda.h}:00` : k === 'modelo' ? nombreModelo || RES.modelo : KPI_T[k];
+      return `<button class="chip chip-on" onclick="${quitar[k] || `RES.kpi.delete('${k}')`};vResumen()" title="Sacar este filtro">${esc(t)} ✕</button>`;
+    }).join('');
+    const etq = activos.map((k) => k === 'celda' ? `${DIAS_L[RES.celda.d]} ${RES.celda.h}:00` : k === 'modelo' ? nombreModelo : KPI_T[k]).join(' · ');
+    const destinos = [['interesados', 'Interesados', 'preventa'], ['testdrives', 'Test drives', 'preventa'], ['vehiculos', 'Vehículos', 'posventa'],
+      ['taller', 'Taller', 'posventa'], ['conversaciones', 'Conversaciones', 'comun']].filter(([, , a]) => puede(a));
+    PERSONAS_CAND = { set: personas, etiqueta: etq };
+    html += `<div class="card filtrando-res"><div class="chips"><span class="grupo">Filtrando</span>${etiquetas}
+      <button class="btn bg sm" onclick="limpiarResumen()">Limpiar</button>
+      <span class="u-s10-mt u-mla"><span class="u-mono">${personas.size}</span> persona${personas.size === 1 ? '' : 's'}</span></div>
+      <div class="chips" style="margin-top:6px"><span class="grupo">Ver en</span>${destinos.map(([id, t]) =>
+        `<button class="chip" onclick="verConPersonas('${id}')">${t} →</button>`).join('')}</div></div>`;
+  }
+
+  // Recuadros: cada uno cuenta con los filtros de los demás; tocarlo prende o apaga el suyo.
+  const kf = (id, cls, lbl, val, sub) => `<div class="kpi ${cls} f${RES.kpi.has(id) ? ' on' : ''}" role="button" tabindex="0"
+    onclick="toggleKpi('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleKpi('${id}')}"
+    title="${esc(RES.kpi.has(id) ? 'Sacar el filtro' : 'Filtrar: ' + KPI_T[id])}"><div class="kpi-lbl">${esc(lbl)}</div><div class="kpi-val">${val}</div>${sub ? `<div class="kpi-sub">${sub}</div>` : ''}</div>`;
+  const cv = convs.filter((c) => pasa(c.wa_id, 'conv7'));
+  html += '<div class="kpi-grid">';
+  html += kf('conv7', 'k-info', 'Conversaciones', cv.length, `${cv.filter((c) => fd(c.updated_at) >= hace7).length} activas en los últimos 7 días`);
+  const ms = deCliente.filter((m) => enCelda(m) && pasa(m.wa_id, 'mensajes'));
+  html += kf('mensajes', 'k-activo', 'Mensajes de clientes', ms.length, (() => { const n = new Set(ms.map((m) => m.wa_id)).size; return `de ${n} persona${n === 1 ? '' : 's'}`; })());
   if (pre) {
-    html += kpi('k-oport', 'Interesados', new Set(leads.map((l) => l.wa_id)).size, `${leads.length} perfiles completados`);
-    const prox = tds.filter((t) => t.estado === 'confirmada' && fd(t.inicio) > ahora);
-    html += kpi('k-oport', 'Test drives próximos', prox.length, prox[0] ? 'El próximo: ' + ffh(fechaLocal(prox[0].inicio_local)) : 'Sin reservas futuras');
+    const ls = leads.filter((l) => pasa(l.wa_id, 'interesados'));
+    html += kf('interesados', 'k-oport', 'Interesados', new Set(ls.map((l) => l.wa_id)).size, `${ls.length} perfiles completados`);
+    const tp = tdFut.filter((t) => pasa(t.wa_id, 'td'));
+    html += kf('td', 'k-oport', 'Test drives próximos', tp.length, tp[0] ? 'El próximo: ' + ffh(fechaLocal(tp[0].inicio_local)) : 'Sin reservas futuras');
   }
   if (post) {
-    const venc = veh.filter((v) => v.estado_service === 'vencido').length;
-    html += kpi(venc ? 'k-alerta' : 'k-info', 'Services vencidos', venc, `${veh.length} vehículos registrados`);
-    const tp = turnos.filter((t) => t.estado === 'confirmado' && fd(t.inicio) > ahora);
-    html += kpi('k-activo', 'Turnos de taller', tp.length, tp[0] ? 'El próximo: ' + ffh(fechaLocal(tp[0].inicio_local)) : 'Sin turnos futuros');
+    const vs = vencidos.filter((v) => pasa(v.wa_id, 'venc'));
+    html += kf('venc', vs.length ? 'k-alerta' : 'k-info', 'Services vencidos', vs.length, `${veh.filter((v) => pasa(v.wa_id, 'venc')).length} vehículos`);
+    const tt = tuFut.filter((t) => pasa(t.wa_id, 'turnos'));
+    html += kf('turnos', 'k-activo', 'Turnos de taller', tt.length, tt[0] ? 'El próximo: ' + ffh(fechaLocal(tt[0].inicio_local)) : 'Sin turnos futuros');
   }
-  html += '</div>' + mapaCalor(msgs) + '<div class="dos">';
-  if (pre) html += `<div class="card"><div class="card-t">Modelos más consultados</div>${ranking(mc, 5)}<a class="btn bg sm" style="margin-top:10px" href="#/modelos">Ver todos</a></div>`;
-  // Actividad: últimos mensajes de clientes
-  const ult = msgs.filter((m) => m.autor === 'cliente').slice(-8).reverse();
+  html += '</div>';
+
+  html += mapaCalor(deCliente.filter((m) => pasa(m.wa_id, 'celda')), RES.celda);
+  html += '<div class="dos">';
+  if (pre) html += `<div class="card"><div class="card-t">Modelos más consultados</div>${ranking(mc.filter((r) => pasa(r.wa_id, 'modelo')), 5, RES.modelo)}<a class="btn bg sm" style="margin-top:10px" href="#/modelos">Ver todos</a></div>`;
+  const ult = deCliente.filter((m) => enCelda(m) && pasa(m.wa_id)).slice(-8).reverse();
   const nom = new Map(convs.map((c) => [c.wa_id, c.nombre]));
   html += `<div class="card"><div class="card-t">Últimos mensajes de clientes</div>${ult.length ? '<table class="tbl"><tbody>' + ult.map((m) =>
-    `<tr class="click" onclick="location.hash='#/conversaciones/${encodeURIComponent(m.wa_id)}'"><td class="u-mono u-s10-mt" style="white-space:nowrap">${ffh(fd(m.fecha))}</td><td><b style="font-weight:600">${esc(nom.get(m.wa_id) || m.wa_id)}</b><div class="u-s10-mt">${esc((m.texto || '').slice(0, 90))}</div></td></tr>`).join('') + '</tbody></table>' : '<div class="empty">Sin mensajes todavía.</div>'}</div>`;
+    `<tr class="click" onclick="location.hash='#/conversaciones/${encodeURIComponent(m.wa_id)}'" title="Abrir la conversación"><td class="u-mono u-s10-mt" style="white-space:nowrap">${ffh(fd(m.fecha))}</td><td><b style="font-weight:600">${esc(nom.get(m.wa_id) || m.wa_id)}</b><div class="u-s10-mt">${esc((m.texto || '').slice(0, 90))}</div></td></tr>`).join('') + '</tbody></table>' : `<div class="empty">${hay ? 'Ningún mensaje con estos filtros.' : 'Sin mensajes todavía.'}</div>`}</div>`;
   html += '</div>';
   $('vista').innerHTML = html;
   activarTips($('vista'));
 }
+function toggleKpi(id) { RES.kpi.has(id) ? RES.kpi.delete(id) : RES.kpi.add(id); vResumen(); }
+function elegirCelda(d, h) { RES.celda = RES.celda && RES.celda.d === d && RES.celda.h === h ? null : { d, h }; $('tip').style.opacity = 0; vResumen(); }
+function elegirModelo(slug) { RES.modelo = RES.modelo === slug ? null : slug; vResumen(); }
+function limpiarResumen() { RES.celda = null; RES.modelo = null; RES.kpi.clear(); PERSONAS = null; vResumen(); }
+
+// "Ver en…": lleva las personas filtradas en el Resumen a otra vista. La vista muestra una barra
+// para sacar ese filtro; se mantiene hasta sacarlo (o hasta "Limpiar" en el Resumen).
+let PERSONAS = null, PERSONAS_CAND = null;   // { set: Set(wa_id), etiqueta }
+function verConPersonas(vista) { PERSONAS = PERSONAS_CAND; location.hash = '#/' + vista; }
+const porPersonas = (filas) => PERSONAS ? filas.filter((r) => PERSONAS.set.has(r.wa_id)) : filas;
+const barraPersonas = () => PERSONAS ? `<div class="card filtrando-res" style="margin-bottom:12px"><div class="chips"><span class="grupo">Desde el Resumen</span>
+  <button class="chip chip-on" onclick="PERSONAS=null;ruta()" title="Sacar este filtro">${esc(PERSONAS.etiqueta)} ✕</button>
+  <span class="u-s10-mt u-mla"><span class="u-mono">${PERSONAS.set.size}</span> persona${PERSONAS.set.size === 1 ? '' : 's'}</span></div></div>` : '';
 
 // Mapa de calor: mensajes de clientes por día de la semana y hora, en hora de Argentina
 // (aunque el navegador esté en otra zona). Mismo diseño que el panel de Grun.
@@ -539,12 +630,10 @@ const RAMPA = [1, 2, 3, 4, 5, 6].map((i) => `var(--heat-${i})`);
 const DIAS_L = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const HORA_AR = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Argentina/Buenos_Aires', weekday: 'short', hour: 'numeric', hourCycle: 'h23' });
 const DOW = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-function mapaCalor(msgs) {
+function mapaCalor(msgs, sel) {
   const cuenta = {}; let max = 0;
   for (const m of msgs) {
-    if (m.autor !== 'cliente' || !m.fecha) continue;
-    const p = Object.fromEntries(HORA_AR.formatToParts(new Date(m.fecha)).map((x) => [x.type, x.value]));
-    const k = DOW[p.weekday] + '_' + Number(p.hour);
+    const c = m.c || celdaDe(m.fecha); const k = c.d + '_' + c.h;
     cuenta[k] = (cuenta[k] || 0) + 1; max = Math.max(max, cuenta[k]);
   }
   let h = '<div></div>';
@@ -554,11 +643,14 @@ function mapaCalor(msgs) {
     for (let i = 0; i < 24; i++) {
       const n = cuenta[d + '_' + i] || 0;
       const c = n ? RAMPA[max <= 1 ? RAMPA.length - 1 : Math.min(RAMPA.length - 1, Math.floor(n / max * (RAMPA.length - 1) + 0.5))] : '';
-      h += `<div class="celda${n ? ' v' : ''}"${c ? ` style="background:${c}"` : ''} data-tip="<b>${DIAS_L[d]} ${i}:00</b><br><span>${n ? n + ' mensaje' + (n === 1 ? '' : 's') : 'sin mensajes'}</span>"></div>`;
+      const esSel = sel && sel.d === d && sel.h === i;
+      // Solo se eligen celdas con mensajes (o la elegida, para poder apagarla): una vacía daría todo en cero.
+      const clic = n || esSel ? ` role="button" tabindex="0" onclick="elegirCelda(${d},${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();elegirCelda(${d},${i})}"` : '';
+      h += `<div class="celda${n ? ' v' : ''}${esSel ? ' sel' : ''}"${c ? ` style="background:${c}"` : ''}${clic} data-tip="<b>${DIAS_L[d]} ${i}:00</b><br><span>${n ? n + ' mensaje' + (n === 1 ? '' : 's') : 'sin mensajes'}</span>${n ? `<br><span>${esSel ? 'Tocá para sacar el filtro' : 'Tocá para filtrar'}</span>` : ''}"></div>`;
     }
   }
   return `<div class="card" style="margin-bottom:12px"><div class="card-t">Cuándo escriben</div>
-    <div class="heat-wrap"><div class="heat">${h}</div></div>
+    <div class="heat-wrap"><div class="heat${sel ? ' filtrando' : ''}">${h}</div></div>
     <div class="escala"><span>Menos</span>${RAMPA.map((c) => `<div class="paso" style="background:${c}"></div>`).join('')}<span>Más</span>
       <span class="u-mla">Mensajes de clientes · hora de Argentina</span></div></div>`;
 }
@@ -577,7 +669,7 @@ function activarTips(raiz) {
 
 // Ranking de modelos a partir de v_modelos_consultados. Cuenta conversaciones distintas por modelo,
 // no menciones: un modelo recomendado cinco veces a la misma persona cuenta una.
-function ranking(filas, max) {
+function ranking(filas, max, sel) {
   const porModelo = new Map();
   for (const r of filas) {
     const x = porModelo.get(r.slug) || { modelo: r.modelo, slug: r.slug, motor: r.motorizacion, gente: new Set(), origenes: {} };
@@ -587,7 +679,8 @@ function ranking(filas, max) {
   if (!lista.length) return '<div class="empty">Sin datos con estos filtros.</div>';
   const top = lista[0].gente.size;
   const img = new Map((DATOS.modelos || []).map((m) => [m.slug, m.imagen_url]));
-  return lista.map((x) => `<div class="rk">${img.get(x.slug) ? `<img src="${esc(img.get(x.slug))}" alt="" loading="lazy">` : '<span></span>'}
+  const clic = sel !== undefined;
+  return lista.map((x) => `<div class="rk${clic ? ' f' : ''}${sel === x.slug ? ' on' : sel ? ' off' : ''}"${clic ? ` role="button" tabindex="0" onclick='elegirModelo(${JSON.stringify(x.slug)})' title="${sel === x.slug ? 'Sacar el filtro' : 'Filtrar por este modelo'}"` : ''}>${img.get(x.slug) ? `<img src="${esc(img.get(x.slug))}" alt="" loading="lazy">` : '<span></span>'}
     <div><div class="rk-n">${esc(x.modelo)} ${bx('x', null, etq('motor', x.motor))}</div>
       <div class="u-s10-mt">${Object.entries(x.origenes).map(([o, n]) => `${esc(etq('origen', o))} <span class="u-mono">${n}</span>`).join(' · ')}</div>
       <div class="barra"><div style="width:${Math.round(x.gente.size / top * 100)}%"></div></div></div>
@@ -595,7 +688,7 @@ function ranking(filas, max) {
 }
 
 async function vInteresados() {
-  const filas = await leer('v_leads', 'created_at');
+  const filas = porPersonas(await leer('v_leads', 'created_at'));
   const grupos = [
     { id: 'estado', t: 'Estado', val: (r) => r.estado, etq: (v) => etq('estado_lead', v) },
     { id: 'motor', t: 'Motor', val: (r) => r.motor, etq: (v) => etq('motor', v) },
@@ -604,7 +697,7 @@ async function vInteresados() {
     { id: 'uso', t: 'Uso', val: (r) => r.uso, etq: (v) => etq('uso', v) },
   ];
   const vis = aplicar('interesados', filas, grupos);
-  $('vista').innerHTML = chipsHTML('interesados', filas, grupos, true) + `<div class="card u-ov"><table class="tbl"><thead><tr>
+  $('vista').innerHTML = barraPersonas() + chipsHTML('interesados', filas, grupos, true) + `<div class="card u-ov"><table class="tbl"><thead><tr>
     <th>Fecha</th><th>Interesado</th><th>Perfil</th><th>Recomendados</th><th>Elegido</th><th>Estado</th><th></th></tr></thead><tbody>${vis.map((r) => `<tr>
     <td class="u-mono u-s10-mt" style="white-space:nowrap">${ffh(fd(r.created_at))}</td>
     <td><b style="font-weight:600">${nombreDe(r)}</b><div class="u-s10-mt u-mono">+${esc(r.wa_id)}</div></td>
@@ -654,14 +747,14 @@ function proximosHTML(filas, fila) {
 }
 
 async function vTestdrives() {
-  const filas = await leer('v_testdrives', 'inicio', true);
+  const filas = porPersonas(await leer('v_testdrives', 'inicio', true));
   const grupos = [
     { id: 'sucursal', t: 'Sucursal', val: (r) => r.sucursal },
     { id: 'modelo', t: 'Modelo', val: (r) => r.modelo },
     { id: 'estado', t: 'Estado', val: (r) => r.estado, etq: (v) => etq('td', v), orden: ['confirmada', 'realizada', 'ausente', 'cancelada'] },
   ];
   const vis = aplicar('testdrives', filas, grupos);
-  $('vista').innerHTML = chipsHTML('testdrives', filas, grupos) + agendaHTML('testdrives', vis, (r) =>
+  $('vista').innerHTML = barraPersonas() + chipsHTML('testdrives', filas, grupos) + agendaHTML('testdrives', vis, (r) =>
     `<div class="ev ${r.estado === 'cancelada' ? 'cancel' : ''}" title="${esc(r.estado)}"><span class="h">${fh(fechaLocal(r.inicio_local))}</span> ${esc(r.modelo.replace('BYD ', ''))}
       <div>${nombreDe(r)}</div><div class="s">${esc(r.sucursal)} · ${esc(etq('td', r.estado))}</div></div>`)
     + proximosHTML(vis, (r) => `<tr><td class="u-mono" style="white-space:nowrap">${ffh(fechaLocal(r.inicio_local))}</td><td style="white-space:nowrap">${esc(r.modelo)}</td><td style="white-space:nowrap">${esc(r.sucursal)}</td>
@@ -671,16 +764,17 @@ ETQ.td = { confirmada: 'Confirmada', realizada: 'Realizada', cancelada: 'Cancela
 ETQ.turno = { confirmado: 'Confirmado', realizado: 'Realizado', cancelado: 'Cancelado', ausente: 'Ausente' };
 
 async function vTaller() {
-  const [filas, sucursales] = await Promise.all([leer('v_turnos_service', 'inicio', true), leer('sucursales', 'id', true)]);
+  const [todas, sucursales] = await Promise.all([leer('v_turnos_service', 'inicio', true), leer('sucursales', 'id', true)]);
+  const filas = porPersonas(todas);
   const grupos = [
     { id: 'sucursal', t: 'Sucursal', val: (r) => r.sucursal },
     { id: 'estado', t: 'Estado', val: (r) => r.estado, etq: (v) => etq('turno', v), orden: ['confirmado', 'realizado', 'ausente', 'cancelado'] },
   ];
   const vis = aplicar('taller', filas, grupos);
   // Cupo: cuántos turnos confirmados comparten sucursal y hora, contra cupos_taller.
-  const ocup = new Map(); for (const r of filas) if (r.estado === 'confirmado') { const k = r.sucursal_id + '|' + r.inicio; ocup.set(k, (ocup.get(k) || 0) + 1); }
+  const ocup = new Map(); for (const r of todas) if (r.estado === 'confirmado') { const k = r.sucursal_id + '|' + r.inicio; ocup.set(k, (ocup.get(k) || 0) + 1); }
   const talleres = sucursales.filter((s) => s.tiene_taller);
-  $('vista').innerHTML = chipsHTML('taller', filas, grupos)
+  $('vista').innerHTML = barraPersonas() + chipsHTML('taller', filas, grupos)
     + `<p class="hint" style="margin-bottom:10px">Turnos de lunes a viernes de 8 a 16 h y sábados de 8 a 11 h. Cupo por hora: ${talleres.map((s) => `${esc(s.nombre_corto)} <span class="u-mono">${s.cupos_taller}</span>`).join(' · ')}.</p>`
     + agendaHTML('taller', vis, (r) => {
       const n = ocup.get(r.sucursal_id + '|' + r.inicio) || 0;
@@ -693,7 +787,7 @@ async function vTaller() {
 }
 
 async function vVehiculos() {
-  const filas = await leer('v_vehiculos', 'proximo_fecha', true);
+  const filas = porPersonas(await leer('v_vehiculos', 'proximo_fecha', true));
   const grupos = [
     { id: 'estado', t: 'Service', val: (r) => r.estado_service, etq: (v) => etq('estado_service', v), orden: ['vencido', 'proximo', 'al_dia'] },
     { id: 'modelo', t: 'Modelo', val: (r) => r.modelo },
@@ -701,7 +795,7 @@ async function vVehiculos() {
     { id: 'turno', t: 'Turno', val: (r) => r.turno_futuro ? 'con' : 'sin', etq: (v) => v === 'con' ? 'Con turno' : 'Sin turno' },
   ];
   const vis = aplicar('vehiculos', filas, grupos);
-  $('vista').innerHTML = chipsHTML('vehiculos', filas, grupos, true) + `<div class="card u-ov"><table class="tbl"><thead><tr>
+  $('vista').innerHTML = barraPersonas() + chipsHTML('vehiculos', filas, grupos, true) + `<div class="card u-ov"><table class="tbl"><thead><tr>
     <th>Patente</th><th>Vehículo</th><th>Titular</th><th>Km hoy (est.)</th><th>Próximo service</th><th>Estado</th><th>Turno</th><th></th></tr></thead><tbody>${vis.map((r) => {
       const ps = r.proximo_service || {}; const us = r.ultimo_service;
       return `<tr><td class="u-mono"><b>${esc(r.patente)}</b></td>
@@ -717,7 +811,8 @@ async function vVehiculos() {
 }
 
 async function vConversaciones(wa) {
-  const [convs, msgs] = await Promise.all([leer('v_conversaciones', 'updated_at'), leer('v_mensajes', 'id', true)]);
+  const [todas, msgs] = await Promise.all([leer('v_conversaciones', 'updated_at'), leer('v_mensajes', 'id', true)]);
+  const convs = porPersonas(todas);
   const grupos = [
     { id: 'intencion', t: 'Intención', val: (r) => r.intencion || 'sin_definir', etq: (v) => v === 'sin_definir' ? 'Sin definir' : etq('intencion', v) },
     { id: 'etapa', t: 'Etapa', val: (r) => r.etapa || 'inicio', etq: (v) => etq('etapa', v) },
@@ -746,7 +841,7 @@ async function vConversaciones(wa) {
       ${c.modelo_actual_nombre ? `<span class="bx xv">Viendo: ${esc(c.modelo_actual_nombre)}</span>` : ''}
       ${perf ? `<div class="perfil" style="width:100%">${[etq('presupuesto', perf.presupuesto), etq('carroceria', perf.carroceria), etq('motor', perf.motor), etq('uso', perf.uso)].map((t) => `<span class="bx xm">${esc(t)}</span>`).join('')}</div>` : ''}`;
   }
-  $('vista').innerHTML = chipsHTML('conversaciones', convs, grupos, true) + `<div class="conv"><div class="conv-l">${lista || '<div class="empty">Ninguna conversación con estos filtros.</div>'}</div>
+  $('vista').innerHTML = barraPersonas() + chipsHTML('conversaciones', convs, grupos, true) + `<div class="conv"><div class="conv-l">${lista || '<div class="empty">Ninguna conversación con estos filtros.</div>'}</div>
     <div class="conv-c">${c ? `<div class="conv-h">${cab}</div>` : ''}<div class="chat" id="chat">${chat}</div></div></div>`;
   const ch = $('chat'); if (ch) ch.scrollTop = ch.scrollHeight;
 }
